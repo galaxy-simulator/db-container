@@ -100,7 +100,7 @@ func newTreeHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("The newTree endpoint was accessed.\n")
 }
 
-// printAllHandler prints all the trees in the treeArray
+// printAllHandler prints all the trees in the treeArray	router.HandleFunc("/printall", printAllHandler).Methods("GET")
 func printAllHandler(w http.ResponseWriter, r *http.Request) { // set the content type to json (looks fancy in firefox :D)
 	w.Header().Set("Content-Type", "application/json")
 
@@ -119,6 +119,24 @@ func printAllHandler(w http.ResponseWriter, r *http.Request) { // set the conten
 	log.Printf("The printAll endpoint was accessed.\n")
 }
 
+func generatePrintTree(quadtree structs.Quadtree) string {
+	returnString := "["
+	fmt.Printf("[")
+	for i := 0; i < 4; i++ {
+		if quadtree.Quadrants[i] != nil {
+			returnString += generatePrintTree(*quadtree.Quadrants[i])
+		}
+	}
+	returnString += "]"
+	fmt.Printf("]")
+	return returnString
+}
+
+func printTreeHandler(w http.ResponseWriter, r *http.Request) {
+	returnString := generatePrintTree(treeArray[0])
+	_, _ = fmt.Fprintln(w, returnString)
+}
+
 // this insert handler inserts a given star using http queries
 func insertHandler(w http.ResponseWriter, r *http.Request) {
 	// get the tree id in which the star should be inserted
@@ -132,15 +150,14 @@ func insertHandler(w http.ResponseWriter, r *http.Request) {
 		panic(errParseForm)
 	}
 
-	// parse the values from the post parameters
+	// parse the values from the post parameters	router.HandleFunc("/printall", printAllHandler).Methods("GET")
 	x, _ := strconv.ParseFloat(r.Form.Get("x"), 64)
 	y, _ := strconv.ParseFloat(r.Form.Get("y"), 64)
 	vx, _ := strconv.ParseFloat(r.Form.Get("vx"), 64)
 	vy, _ := strconv.ParseFloat(r.Form.Get("vy"), 64)
 	m, _ := strconv.ParseFloat(r.Form.Get("m"), 64)
 
-	log.Println("------------------------------------------------------------------------------------------------")
-	log.Printf("[---] Inserting x: %f\ty: %f", x, y)
+	log.Printf("[---] Inserting star into the tree")
 
 	// build the star that should be inserted
 	newStar := structs.Star2D{
@@ -155,7 +172,7 @@ func insertHandler(w http.ResponseWriter, r *http.Request) {
 		M: m,
 	}
 
-	treeArray[treeindex].Insert(newStar)
+	treeArray[treeindex].NewInsert(newStar)
 }
 
 // Simple index Handler
@@ -167,6 +184,23 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	var _, _ = fmt.Fprintln(w, "Insert a star using > $ curl --data \"x=250&y=250&vx=0.1&vy=0.2&m=3\" http://localhost:8123/insert/0")
 }
 
+// drawGalaxyHandler draws the galaxy and returns an image of it
+func drawGalaxyHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("The drawTreeHandler was accessed.")
+
+	vars := mux.Vars(r)
+	treeindex, _ := strconv.ParseInt(vars["treeindex"], 10, 0)
+	log.Println(treeindex)
+
+	if treeArray[treeindex] != (structs.Quadtree{}) {
+		log.Println(treeArray[treeindex])
+		treeArray[treeindex].DrawGalaxy("/public/quadtree.png")
+	}
+
+	http.ServeFile(w, r, "/public/quadtree.png")
+}
+
+// drawTreeHandler draws a tree of the galaxy and returns an image of it
 func drawTreeHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("The drawTreeHandler was accessed.")
 
@@ -176,10 +210,11 @@ func drawTreeHandler(w http.ResponseWriter, r *http.Request) {
 
 	if treeArray[treeindex] != (structs.Quadtree{}) {
 		log.Println(treeArray[treeindex])
-		treeArray[treeindex].Draw("/public/quadtree.png")
+		latex := treeArray[treeindex].DrawTree()
+		_, _ = fmt.Fprintf(w, "%s", latex)
+	} else {
+		_, _ = fmt.Fprintln(w, "error")
 	}
-
-	http.ServeFile(w, r, "/public/quadtree.png")
 }
 
 func main() {
@@ -190,7 +225,10 @@ func main() {
 	router.HandleFunc("/new", newTreeHandler).Methods("POST")
 	router.HandleFunc("/insert/{treeindex}", insertHandler).Methods("POST")
 	router.HandleFunc("/printall", printAllHandler).Methods("GET")
+	router.HandleFunc("/printtree", printTreeHandler).Methods("GET")
+	router.HandleFunc("/drawgalaxy/{treeindex}", drawGalaxyHandler).Methods("GET")
 	router.HandleFunc("/drawtree/{treeindex}", drawTreeHandler).Methods("GET")
 
-	log.Fatal(http.ListenAndServe(":8015", router))
+	log.Println("Serving the database on port 8092 (This is for local testing only, remove when done!)")
+	log.Fatal(http.ListenAndServe(":8042", router))
 }

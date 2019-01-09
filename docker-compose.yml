@@ -3,5 +3,3 @@ version: '3'
 services:
   db:
     build: .
-    ports:
-      - "8015:80"
