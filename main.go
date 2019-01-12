@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/gorilla/mux"
@@ -13,40 +14,25 @@ import (
 )
 
 var (
-	treeArray []structs.Quadtree
+	treeArray []*structs.Node
 )
 
-// Get a subtree by searching a given element and returning its children recursively
-func getSubtreeHandler(w http.ResponseWriter, r *http.Request) {
-	// set the content type to json (looks fancy in firefox :D)
-	w.Header().Set("Content-Type", "application/json")
+// indexHandler
+func indexHandler(w http.ResponseWriter, r *http.Request) {
+	infostring := `Galaxy Simulator Database
 
-	// parse the mux variables
-	vars := mux.Vars(r)
-	getIndex, strconvErr := strconv.ParseInt(vars["treeindex"], 10, 0)
-	if strconvErr != nil {
-		panic(strconvErr)
-	}
-	log.Println(getIndex)
-
-	// Convert the data to json
-	jsonData, jsonMarshalerError := json.Marshal(treeArray[getIndex])
-	if jsonMarshalerError != nil {
-		panic(jsonMarshalerError)
-	}
-
-	// print the jsonData to the ResponseWriter
-	_, printTreeErr := fmt.Fprintf(w, "%v\n", string(jsonData))
-	if printTreeErr != nil {
-		panic(printTreeErr)
-	}
-	log.Printf("The getSubtree endpoint was accessed.\n")
+API: /api/v1/...
+	.../new
+	.../insert{treeindex}`
+	_, _ = fmt.Fprintf(w, infostring)
 }
 
 // newTreeHandler creates a new tree and adds ot the the treeArray
 func newTreeHandler(w http.ResponseWriter, r *http.Request) {
 	// set the content type to json (looks fancy in firefox :D)
 	w.Header().Set("Content-Type", "application/json")
+
+	fmt.Println("Creating a new tree")
 
 	// get the star by parsing http-post parameters
 	errParseForm := r.ParseForm() // parse the POST form
@@ -55,38 +41,19 @@ func newTreeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// default values
-	x := 0.0
-	y := 0.0
 	width := 0.0
 
-	// values from the user
-	xTmp, _ := strconv.ParseFloat(r.Form.Get("x"), 64)     // x
-	yTmp, _ := strconv.ParseFloat(r.Form.Get("y"), 64)     // y
+	// value from the user
 	widthTmp, _ := strconv.ParseFloat(r.Form.Get("w"), 64) // bounding box width
+	log.Printf("width: %f", widthTmp)
 
-	// assign the values
-	if xTmp != 0 {
-		x = xTmp
-	}
-	if yTmp != 0 {
-		y = yTmp
-	}
 	if widthTmp != 0 {
 		width = widthTmp
 	}
 
 	// generate a new tree and add it to the treeArray
-	newTree := structs.NewQuadtree(structs.BoundingBox{
-		Center: structs.Vec2{
-			X: x,
-			Y: y,
-		},
-		Width: width,
-	})
-
-	log.Println(newTree.Boundary)
-
-	treeArray = append(treeArray, *newTree)
+	newTree := structs.NewRoot(width)
+	treeArray = append(treeArray, newTree)
 
 	// convert the tree to json format
 	jsonData, jsonMarshalErr := json.Marshal(newTree)
@@ -100,7 +67,7 @@ func newTreeHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("The newTree endpoint was accessed.\n")
 }
 
-// printAllHandler prints all the trees in the treeArray	router.HandleFunc("/printall", printAllHandler).Methods("GET")
+// printAllHandler prints all the trees in the treeArray
 func printAllHandler(w http.ResponseWriter, r *http.Request) { // set the content type to json (looks fancy in firefox :D)
 	w.Header().Set("Content-Type", "application/json")
 
@@ -116,33 +83,17 @@ func printAllHandler(w http.ResponseWriter, r *http.Request) { // set the conten
 		panic(printTreeErr)
 	}
 
+	log.Println(treeArray[0])
 	log.Printf("The printAll endpoint was accessed.\n")
 }
 
-func generatePrintTree(quadtree structs.Quadtree) string {
-	returnString := "["
-	fmt.Printf("[")
-	for i := 0; i < 4; i++ {
-		if quadtree.Quadrants[i] != nil {
-			returnString += generatePrintTree(*quadtree.Quadrants[i])
-		}
-	}
-	returnString += "]"
-	fmt.Printf("]")
-	return returnString
-}
+// insertStarHandler inserts a star into the given tree
+func insertStarHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("The insert handler was accessed")
 
-func printTreeHandler(w http.ResponseWriter, r *http.Request) {
-	returnString := generatePrintTree(treeArray[0])
-	_, _ = fmt.Fprintln(w, returnString)
-}
-
-// this insert handler inserts a given star using http queries
-func insertHandler(w http.ResponseWriter, r *http.Request) {
-	// get the tree id in which the star should be inserted
+	// get the treeindex in which the star should be inserted into
 	vars := mux.Vars(r)
 	treeindex, _ := strconv.ParseInt(vars["treeindex"], 10, 0)
-	_, _ = fmt.Fprintln(w, treeindex)
 
 	// get the star by parsing http-post parameters
 	errParseForm := r.ParseForm() // parse the POST form
@@ -150,70 +101,66 @@ func insertHandler(w http.ResponseWriter, r *http.Request) {
 		panic(errParseForm)
 	}
 
-	// parse the values from the post parameters	router.HandleFunc("/printall", printAllHandler).Methods("GET")
+	// get the star coordinates
 	x, _ := strconv.ParseFloat(r.Form.Get("x"), 64)
 	y, _ := strconv.ParseFloat(r.Form.Get("y"), 64)
 	vx, _ := strconv.ParseFloat(r.Form.Get("vx"), 64)
 	vy, _ := strconv.ParseFloat(r.Form.Get("vy"), 64)
 	m, _ := strconv.ParseFloat(r.Form.Get("m"), 64)
 
-	log.Printf("[---] Inserting star into the tree")
+	log.Printf("treeindex: %d", treeindex)
+	log.Printf("x: %f", x)
+	log.Printf("y: %f", y)
+	log.Printf("vx: %f", vx)
+	log.Printf("vy: %f", vy)
+	log.Printf("m: %f", m)
 
-	// build the star that should be inserted
-	newStar := structs.Star2D{
-		C: structs.Vec2{
-			X: x,
-			Y: y,
-		},
-		V: structs.Vec2{
-			X: vx,
-			Y: vy,
-		},
+	s1 := structs.Star2D{
+		C: structs.Vec2{x, y},
+		V: structs.Vec2{vx, vy},
 		M: m,
 	}
 
-	treeArray[treeindex].NewInsert(newStar)
+	log.Printf("s1: %v", s1)
+
+	treeArray[treeindex].Insert(s1)
+
+	fmt.Println("-------------")
+	fmt.Println(treeArray)
+	fmt.Println("-------------")
+
+	log.Println("Done inserting the star")
 }
 
-// Simple index Handler
-// TODO: Display some kind of help
-// TODO: Insert an api-documentation
-func indexHandler(w http.ResponseWriter, r *http.Request) {
-	var _, _ = fmt.Fprintf(w, "Hello from the db-container!")
-	log.Printf("The indexHandler was accessed.")
-	var _, _ = fmt.Fprintln(w, "Insert a star using > $ curl --data \"x=250&y=250&vx=0.1&vy=0.2&m=3\" http://localhost:8123/insert/0")
-}
+// calculate the forces acting inbetween all the stars
+func calcallHandler(w http.ResponseWriter, r *http.Request) {
+	// iterate over all the stars and make a POST request to the simulator with the star
 
-// drawGalaxyHandler draws the galaxy and returns an image of it
-func drawGalaxyHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("The drawTreeHandler was accessed.")
-
+	// get the treeindex
 	vars := mux.Vars(r)
 	treeindex, _ := strconv.ParseInt(vars["treeindex"], 10, 0)
-	log.Println(treeindex)
 
-	if treeArray[treeindex] != (structs.Quadtree{}) {
-		log.Println(treeArray[treeindex])
-		treeArray[treeindex].DrawGalaxy("/public/quadtree.png")
-	}
+	listOfStars := treeArray[treeindex].GetAllStars()
 
-	http.ServeFile(w, r, "/public/quadtree.png")
-}
+	for _, star := range listOfStars {
+		// http post request to the simulator traefik with the star in the form
 
-// drawTreeHandler draws a tree of the galaxy and returns an image of it
-func drawTreeHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("The drawTreeHandler was accessed.")
+		fmt.Println(star)
 
-	vars := mux.Vars(r)
-	treeindex, _ := strconv.ParseInt(vars["treeindex"], 10, 0)
-	log.Println(treeindex)
+		apiurl := "simu.docker.localhost"
 
-	if treeArray[treeindex] != (structs.Quadtree{}) {
-		log.Println(treeArray[treeindex])
-		latex := treeArray[treeindex].DrawTree()
-		_, _ = fmt.Fprintf(w, "%s", latex)
-	} else {
-		_, _ = fmt.Fprintln(w, "error")
+		response, err := http.PostForm(apiurl, url.Values{
+			"x":  {fmt.Sprintf("%f", star.C.X)},
+			"y":  {fmt.Sprintf("%f", star.C.Y)},
+			"vx": {fmt.Sprintf("%f", star.V.X)},
+			"vy": {fmt.Sprintf("%f", star.V.X)},
+			"m":  {fmt.Sprintf("%f", star.M)},
+		})
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Println(response)
 	}
 }
 
@@ -221,14 +168,11 @@ func main() {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/", indexHandler).Methods("GET")
-	router.HandleFunc("/get/{treeindex}", getSubtreeHandler).Methods("GET")
-	router.HandleFunc("/new", newTreeHandler).Methods("POST")
-	router.HandleFunc("/insert/{treeindex}", insertHandler).Methods("POST")
-	router.HandleFunc("/printall", printAllHandler).Methods("GET")
-	router.HandleFunc("/printtree", printTreeHandler).Methods("GET")
-	router.HandleFunc("/drawgalaxy/{treeindex}", drawGalaxyHandler).Methods("GET")
-	router.HandleFunc("/drawtree/{treeindex}", drawTreeHandler).Methods("GET")
+	router.HandleFunc("/api/v1/new", newTreeHandler).Methods("POST")
+	router.HandleFunc("/api/v1/printall", printAllHandler).Methods("GET")
+	router.HandleFunc("/api/v1/insert/{treeindex}", insertStarHandler).Methods("POST")
+	router.HandleFunc("/api/v1/calcall/{treeindex}", calcallHandler).Methods("GET")
 
-	log.Println("Serving the database on port 8092 (This is for local testing only, remove when done!)")
-	log.Fatal(http.ListenAndServe(":8042", router))
+	log.Println("Serving the database on port 8043: This is for local testing only, remove when done!)")
+	log.Fatal(http.ListenAndServe(":8043", router))
 }
