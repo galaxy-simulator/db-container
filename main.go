@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"strconv"
 
 	"github.com/gorilla/mux"
@@ -21,9 +20,11 @@ var (
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	infostring := `Galaxy Simulator Database
 
-API: /api/v1/...
-	.../new
-	.../insert{treeindex}`
+API:
+	/new
+	/insert/{treeindex} POST with the following values: x, y, vx, vy, m
+	/starlist/{treeindex}
+	/printall`
 	_, _ = fmt.Fprintf(w, infostring)
 }
 
@@ -83,7 +84,6 @@ func printAllHandler(w http.ResponseWriter, r *http.Request) { // set the conten
 		panic(printTreeErr)
 	}
 
-	log.Println(treeArray[0])
 	log.Printf("The printAll endpoint was accessed.\n")
 }
 
@@ -132,35 +132,50 @@ func insertStarHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Done inserting the star")
 }
 
-// calculate the forces acting inbetween all the stars
-func calcallHandler(w http.ResponseWriter, r *http.Request) {
-	// iterate over all the stars and make a POST request to the simulator with the star
+// starlistHandler lists all the stars in the given tree
+func starlistHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("The starlist handler was accessed")
 
-	// get the treeindex
+	w.Header().Set("Content-Type", "application/json")
+
 	vars := mux.Vars(r)
 	treeindex, _ := strconv.ParseInt(vars["treeindex"], 10, 0)
 
-	listOfStars := treeArray[treeindex].GetAllStars()
+	listofallstars := treeArray[treeindex].GetAllStars()
+	log.Printf("listofallstars: %v", listofallstars)
+	// listofallstars: [{{-42 10} {0 0} 100} {{10 10} {0 0} 100}]
 
-	for _, star := range listOfStars {
-		// http post request to the simulator traefik with the star in the form
+	// convert the list of all stars to json
+	jsonlistofallstars, jsonMarshalErr := json.Marshal(listofallstars)
+	if jsonMarshalErr != nil {
+		panic(jsonMarshalErr)
+	}
 
-		fmt.Println(star)
+	log.Printf("jsonlistofallstars: %v", string(jsonlistofallstars))
 
-		apiurl := "simu.docker.localhost"
+	_, _ = fmt.Fprintln(w, string(jsonlistofallstars))
+	log.Println("Done")
+}
 
-		response, err := http.PostForm(apiurl, url.Values{
-			"x":  {fmt.Sprintf("%f", star.C.X)},
-			"y":  {fmt.Sprintf("%f", star.C.Y)},
-			"vx": {fmt.Sprintf("%f", star.V.X)},
-			"vy": {fmt.Sprintf("%f", star.V.X)},
-			"m":  {fmt.Sprintf("%f", star.M)},
-		})
-		if err != nil {
-			panic(err)
-		}
+// subtreeHandler dumps the requested tree
+func dumptreeHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("The dumptree endpoint was accessed.\n")
 
-		fmt.Println(response)
+	w.Header().Set("Content-Type", "application/json")
+
+	vars := mux.Vars(r)
+	treeindex, _ := strconv.ParseInt(vars["treeindex"], 10, 0)
+
+	// Convert the data to json
+	jsonData, jsonMarshalerError := json.Marshal(treeArray[treeindex])
+	if jsonMarshalerError != nil {
+		panic(jsonMarshalerError)
+	}
+
+	// print the jsonData to the ResponseWriter
+	_, printTreeErr := fmt.Fprintf(w, "%v\n", string(jsonData))
+	if printTreeErr != nil {
+		panic(printTreeErr)
 	}
 }
 
@@ -168,11 +183,12 @@ func main() {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/", indexHandler).Methods("GET")
-	router.HandleFunc("/api/v1/new", newTreeHandler).Methods("POST")
-	router.HandleFunc("/api/v1/printall", printAllHandler).Methods("GET")
-	router.HandleFunc("/api/v1/insert/{treeindex}", insertStarHandler).Methods("POST")
-	router.HandleFunc("/api/v1/calcall/{treeindex}", calcallHandler).Methods("GET")
+	router.HandleFunc("/new", newTreeHandler).Methods("POST")
+	router.HandleFunc("/printall", printAllHandler).Methods("GET")
+	router.HandleFunc("/insert/{treeindex}", insertStarHandler).Methods("POST")
+	router.HandleFunc("/starlist/{treeindex}", starlistHandler).Methods("GET")
+	router.HandleFunc("/dumptree/{treeindex}", dumptreeHandler).Methods("GET")
 
 	log.Println("Serving the database on port 8043: This is for local testing only, remove when done!)")
-	log.Fatal(http.ListenAndServe(":8043", router))
+	log.Fatal(http.ListenAndServe(":80", router))
 }
