@@ -4,6 +4,20 @@ This Repo contains the main "database" running an http-api exposing the quadtree
 
 ## API-Endpoints
 
+| Endpoint | Description | POST parameters |
+| --- | --- | --- |
+| `"/"` | Index | |
+| `"/new"` | Create a new star | `w` |
+| `"/printall"` | Print all the trees in json| |
+| `"/insert/{treeindex}"` | Insert the given star into the selected tree | `x`, `y`, `vx`, `vy`, `m` |
+| `"/starlist/{treeindex}"` | List all the stars in the selected tree| |
+| `"/dumptree/{treeindex}"` | Dump the json of the selected tree | |
+| `"/updatetotalmass/{treeindex}"` | Update the total mass in the selected tree | |
+| `"/updatecenterofmass/{treeindex}"` | Update the center of mass in the selected tree | |
+| `"/metrics"` | Get the overall metrics | |
+| `"/export/{treeindex}"` | Export the selected tree to `db/{treeindex}.json` | |
+| `"/fastinsert/{filename}"` | Insert the selected file into a new tree | |
+
 
 ## Files
 
