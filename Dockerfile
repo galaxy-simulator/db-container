@@ -4,6 +4,7 @@ WORKDIR /home
 
 COPY main.go /home/main.go
 
+RUN ["mkdir", "/exports"]
 RUN ["go", "get", "github.com/gorilla/mux"]
 RUN ["go", "get", "git.darknebu.la/GalaxySimulator/structs"]
 

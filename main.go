@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -252,6 +253,34 @@ func metricHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = fmt.Fprintf(w, metricsString)
 }
 
+// export exports all the trees
+func export(treeindex int64) error {
+	// Convert the data to json
+	jsonData, jsonMarshalerError := json.Marshal(treeArray[treeindex])
+	if jsonMarshalerError != nil {
+		panic(jsonMarshalerError)
+	}
+
+	// write the json formatted byte data to a file
+	err := ioutil.WriteFile(fmt.Sprintf("/exports/tree_%d.json", treeindex), jsonData, 0644)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func exportHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	treeindex, _ := strconv.ParseInt(vars["treeindex"], 10, 0)
+
+	err := export(treeindex)
+	if err != nil {
+		panic(err)
+	}
+
+	_, _ = fmt.Fprintf(w, "Exportet Tree %d", treeindex)
+}
+
 func main() {
 	router := mux.NewRouter()
 
@@ -264,6 +293,7 @@ func main() {
 	router.HandleFunc("/updatetotalmass/{treeindex}", updateTotalMassHandler).Methods("GET")
 	router.HandleFunc("/updatecenterofmass/{treeindex}", updateCenterOfMassHandler).Methods("GET")
 	router.HandleFunc("/metrics", metricHandler).Methods("GET")
+	router.HandleFunc("/export/{treeindex}", exportHandler).Methods("POST")
 
 	fmt.Println("Database Container up")
 	log.Fatal(http.ListenAndServe(":80", router))
