@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/gorilla/mux"
@@ -14,6 +15,7 @@ import (
 
 var (
 	treeArray []*structs.Node
+	starCount []int
 )
 
 // indexHandler
@@ -21,14 +23,17 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	infostring := `Galaxy Simulator Database
 
 API:
-	/new
-	/insert/{treeindex} POST with the following values: x, y, vx, vy, m
+	/ GET
+	/new POST w float64
+	/insert/{treeindex} POST x float64, y float64, vx float64, vy float64, m float64
 	/starlist/{treeindex}
-	/printall`
+	/printall GET
+	/metrics GET
+`
 	_, _ = fmt.Fprintf(w, infostring)
 }
 
-// newTreeHandler creates a new tree and adds ot the the treeArray
+// newTreeHandler creates a new tree
 func newTreeHandler(w http.ResponseWriter, r *http.Request) {
 	// set the content type to json (looks fancy in firefox :D)
 	w.Header().Set("Content-Type", "application/json")
@@ -42,19 +47,30 @@ func newTreeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// default values
-	width := 0.0
+	width := 100.0
 
 	// value from the user
-	widthTmp, _ := strconv.ParseFloat(r.Form.Get("w"), 64) // bounding box width
-	log.Printf("width: %f", widthTmp)
+	userWidth, _ := strconv.ParseFloat(r.Form.Get("w"), 64) // bounding box width
+	log.Printf("width: %f", userWidth)
 
-	if widthTmp != 0 {
-		width = widthTmp
+	// overwrite the default width
+	if userWidth != width {
+		width = userWidth
 	}
+
+	jsonData := newTree(width)
+
+	// return the new tree as json
+	_, _ = fmt.Fprintf(w, "%v", string(jsonData))
+}
+
+// newTree generates a new tree using the width it is given and returns it as json in an array of bytes
+func newTree(width float64) []byte {
 
 	// generate a new tree and add it to the treeArray
 	newTree := structs.NewRoot(width)
 	treeArray = append(treeArray, newTree)
+	starCount = append(starCount, 0)
 
 	// convert the tree to json format
 	jsonData, jsonMarshalErr := json.Marshal(newTree)
@@ -62,10 +78,8 @@ func newTreeHandler(w http.ResponseWriter, r *http.Request) {
 		panic(jsonMarshalErr)
 	}
 
-	// return the new tree as json
-	_, _ = fmt.Fprintf(w, "%v", string(jsonData))
+	return jsonData
 
-	log.Printf("The newTree endpoint was accessed.\n")
 }
 
 // printAllHandler prints all the trees in the treeArray
@@ -123,13 +137,41 @@ func insertStarHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("s1: %v", s1)
 
-	treeArray[treeindex].Insert(s1)
+	treeInsertError := treeArray[treeindex].Insert(s1)
+	if treeInsertError != nil {
+		panic(fmt.Sprintf("Error inserting %v into tree %d: %v", s1, treeindex, treeInsertError))
+	}
 
 	fmt.Println("-------------")
 	fmt.Println(treeArray)
 	fmt.Println("-------------")
 
 	log.Println("Done inserting the star")
+	starCount[treeindex] += 1
+
+	pushMetricsNumOfStars("http://db:80/metrics", treeindex)
+
+	_, _ = fmt.Fprintf(w, "%d", starCount[treeindex])
+}
+
+// pushMetricsNumOfStars pushes the amount of stars in the given galaxy with the given index to the given host
+// the host is (normally) the service bundling the metrics
+func pushMetricsNumOfStars(host string, treeindex int64) {
+
+	// define a post-request and send it to the given host
+	requestURL := fmt.Sprintf("%s", host)
+	resp, err := http.PostForm(requestURL,
+		url.Values{
+			"key":   {fmt.Sprintf("db_%s{nr=\"%s\"}", "stars_num", treeindex)},
+			"value": {fmt.Sprintf("%d", starCount[treeindex])},
+		},
+	)
+	if err != nil {
+		fmt.Printf("Cound not make a POST request to %s", requestURL)
+	}
+
+	// close the response body
+	defer resp.Body.Close()
 }
 
 // starlistHandler lists all the stars in the given tree
@@ -157,7 +199,7 @@ func starlistHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Done")
 }
 
-// subtreeHandler dumps the requested tree
+// dumptreeHandler dumps the requested tree
 func dumptreeHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("The dumptree endpoint was accessed.\n")
 
@@ -179,6 +221,37 @@ func dumptreeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// updateCenterOfMassHandler updates the center of mass in each node in tree with the given index
+func updateCenterOfMassHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Updating the center of mass")
+	vars := mux.Vars(r)
+	treeindex, _ := strconv.ParseInt(vars["treeindex"], 10, 0)
+
+	treeArray[treeindex].CalcCenterOfMass()
+}
+
+// updateTotalMassHandler updates the total mass in each node in the tree with the given index
+func updateTotalMassHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Updating the total mass")
+	vars := mux.Vars(r)
+	treeindex, _ := strconv.ParseInt(vars["treeindex"], 10, 0)
+
+	treeArray[treeindex].CalcTotalMass()
+}
+
+// metricHandler prints all the metrics to the ResponseWriter
+func metricHandler(w http.ResponseWriter, r *http.Request) {
+	var metricsString string
+	metricsString += fmt.Sprintf("nr_galaxies %d\n", len(treeArray))
+
+	for i := 0; i < len(starCount); i++ {
+		metricsString += fmt.Sprintf("galaxy_star_count{galaxy_nr=\"%d\"} %d\n", i, starCount[i])
+	}
+
+	log.Println(metricsString)
+	_, _ = fmt.Fprintf(w, metricsString)
+}
+
 func main() {
 	router := mux.NewRouter()
 
@@ -188,7 +261,10 @@ func main() {
 	router.HandleFunc("/insert/{treeindex}", insertStarHandler).Methods("POST")
 	router.HandleFunc("/starlist/{treeindex}", starlistHandler).Methods("GET")
 	router.HandleFunc("/dumptree/{treeindex}", dumptreeHandler).Methods("GET")
+	router.HandleFunc("/updatetotalmass/{treeindex}", updateTotalMassHandler).Methods("GET")
+	router.HandleFunc("/updatecenterofmass/{treeindex}", updateCenterOfMassHandler).Methods("GET")
+	router.HandleFunc("/metrics", metricHandler).Methods("GET")
 
-	log.Println("Serving the database on port 8043: This is for local testing only, remove when done!)")
+	fmt.Println("Database Container up")
 	log.Fatal(http.ListenAndServe(":80", router))
 }
