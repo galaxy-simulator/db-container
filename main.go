@@ -20,12 +20,17 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	infostring := `Galaxy Simulator Database
 
 API:
-	/ GET
-	/new POST w float64
-	/insert/{treeindex} POST x float64, y float64, vx float64, vy float64, m float64
-	/starlist/{treeindex}
-	/printall GET
-	/metrics GET
+	- / ("GET")
+	- /new ("POST")
+	- /printall ("GET")
+	- /insert/{treeindex} ("POST")
+	- /starlist/{treeindex} ("GET")
+	- /dumptree/{treeindex} ("GET")
+	- /updatetotalmass/{treeindex} ("GET")
+	- /updatecenterofmass/{treeindex} ("GET")
+	- /metrics ("GET")
+	- /export/{treeindex} ("POST")
+	- /fastinsert/{filename} ("POST")
 `
 	_, _ = fmt.Fprintf(w, infostring)
 }

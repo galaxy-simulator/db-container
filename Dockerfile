@@ -2,10 +2,11 @@ FROM golang:latest
 
 WORKDIR /home
 
-COPY main.go /home/main.go
+COPY *.go /home/
 
 RUN ["mkdir", "/exports"]
 RUN ["go", "get", "github.com/gorilla/mux"]
 RUN ["go", "get", "git.darknebu.la/GalaxySimulator/structs"]
+RUN ["ls", "-l"]
 
-ENTRYPOINT ["go", "run", "/home/main.go"]
+ENTRYPOINT ["go", "run", "."]
