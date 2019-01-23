@@ -16,6 +16,10 @@ func metricHandler(w http.ResponseWriter, r *http.Request) {
 		metricsString += fmt.Sprintf("galaxy_star_count{galaxy_nr=\"%d\"} %d\n", i, starCount[i])
 	}
 
+	for i := 0; i < len(errorCount); i++ {
+		metricsString += fmt.Sprintf("galaxy_error_count{galaxy_nr=\"%d\"} %d\n", i, errorCount[i])
+	}
+
 	log.Println(metricsString)
 	_, _ = fmt.Fprintf(w, metricsString)
 }

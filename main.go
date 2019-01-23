@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 
@@ -11,8 +12,9 @@ import (
 )
 
 var (
-	treeArray []*structs.Node
-	starCount []int
+	treeArray  []*structs.Node
+	starCount  []int
+	errorCount []int
 )
 
 // indexHandler
@@ -26,13 +28,37 @@ API:
 	- /insert/{treeindex} ("POST")
 	- /starlist/{treeindex} ("GET")
 	- /dumptree/{treeindex} ("GET")
+
 	- /updatetotalmass/{treeindex} ("GET")
 	- /updatecenterofmass/{treeindex} ("GET")
+
 	- /metrics ("GET")
 	- /export/{treeindex} ("POST")
-	- /fastinsert/{filename} ("POST")
+
+	- /fastinsertjson/{filename} ("GET")
+	- /fastinsertlist/{filename} ("GET")
+
+	- /readdir ("GET")
 `
 	_, _ = fmt.Fprintf(w, infostring)
+}
+
+func readdirHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	dirname := vars["dirname"]
+	log.Printf("Reading from %s", dirname)
+
+	files, err := ioutil.ReadDir(fmt.Sprintf("./%s", dirname))
+	log.Println(files)
+	log.Println(err)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	for _, f := range files {
+		fmt.Println(f.Name())
+		_, _ = fmt.Fprintf(w, "%v", f.Name())
+	}
 }
 
 func main() {
@@ -48,7 +74,11 @@ func main() {
 	router.HandleFunc("/updatecenterofmass/{treeindex}", updateCenterOfMassHandler).Methods("GET")
 	router.HandleFunc("/metrics", metricHandler).Methods("GET")
 	router.HandleFunc("/export/{treeindex}", exportHandler).Methods("POST")
-	router.HandleFunc("/fastinsert/{filename}", fastInsertHandler).Methods("POST")
+
+	router.HandleFunc("/fastinsertjson/{filename}", fastInsertJSONHandler).Methods("GET")
+	router.HandleFunc("/fastinsertlist/{filename}/{treeindex}", fastInsertListHandler).Methods("GET")
+
+	router.HandleFunc("/readdir/{dirname}", readdirHandler).Methods("GET")
 
 	fmt.Println("Database Container up")
 	log.Fatal(http.ListenAndServe(":80", router))
