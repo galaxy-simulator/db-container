@@ -61,6 +61,11 @@ func readdirHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// return the amount of galaxies currently present
+func nrofgalaxiesHandler(w http.ResponseWriter, r *http.Request) {
+	_, _ = fmt.Fprintf(w, "%d", len(treeArray))
+}
+
 func main() {
 	router := mux.NewRouter()
 
@@ -74,11 +79,12 @@ func main() {
 	router.HandleFunc("/updatecenterofmass/{treeindex}", updateCenterOfMassHandler).Methods("GET")
 	router.HandleFunc("/metrics", metricHandler).Methods("GET")
 	router.HandleFunc("/export/{treeindex}", exportHandler).Methods("POST")
+	router.HandleFunc("/nrofgalaxies", nrofgalaxiesHandler).Methods("GET")
 
 	router.HandleFunc("/fastinsertjson/{filename}", fastInsertJSONHandler).Methods("GET")
 	router.HandleFunc("/fastinsertlist/{filename}/{treeindex}", fastInsertListHandler).Methods("GET")
 
-	router.HandleFunc("/readdir/{dirname}", readdirHandler).Methods("GET")
+	// router.HandleFunc("/readdir/{dirname}", readdirHandler).Methods("GET")
 
 	fmt.Println("Database Container up")
 	log.Fatal(http.ListenAndServe(":80", router))
