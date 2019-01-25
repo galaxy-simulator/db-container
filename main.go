@@ -17,8 +17,7 @@ var (
 	errorCount []int
 )
 
-// indexHandler
-func indexHandler(w http.ResponseWriter, r *http.Request) {
+func index() string {
 	infostring := `Galaxy Simulator Database
 
 API:
@@ -40,9 +39,15 @@ API:
 
 	- /readdir ("GET")
 `
-	_, _ = fmt.Fprintf(w, infostring)
+	return infostring
 }
 
+// indexHandler
+func indexHandler(w http.ResponseWriter, r *http.Request) {
+	_, _ = fmt.Fprintf(w, index())
+}
+
+// readdirHandler reads the content of a given directory and prints it
 func readdirHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	dirname := vars["dirname"]
@@ -84,7 +89,7 @@ func main() {
 	router.HandleFunc("/fastinsertjson/{filename}", fastInsertJSONHandler).Methods("GET")
 	router.HandleFunc("/fastinsertlist/{filename}/{treeindex}", fastInsertListHandler).Methods("GET")
 
-	// router.HandleFunc("/readdir/{dirname}", readdirHandler).Methods("GET")
+	router.HandleFunc("/readdir/{dirname}", readdirHandler).Methods("GET")
 
 	fmt.Println("Database Container up")
 	log.Fatal(http.ListenAndServe(":80", router))
