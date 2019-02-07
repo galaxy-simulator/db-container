@@ -1,74 +1,96 @@
+// main.go purpose is to build the interaction layer in between the http endpoints and the http server
+// Copyright (C) 2019 Emile Hansmaennel
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"git.darknebu.la/GalaxySimulator/structs"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
-
-	"git.darknebu.la/GalaxySimulator/structs"
+	//"git.darknebu.la/GalaxySimulator/structs"
 )
 
-var (
-	treeArray  []*structs.Node
-	starCount  []int
-	errorCount []int
-)
-
-func index() string {
-	infostring := `Galaxy Simulator Database
-
-API:
-	- / ("GET")
-	- /new ("POST")
-	- /printall ("GET")
-	- /insert/{treeindex} ("POST")
-	- /starlist/{treeindex} ("GET")
-	- /dumptree/{treeindex} ("GET")
-
-	- /updatetotalmass/{treeindex} ("GET")
-	- /updatecenterofmass/{treeindex} ("GET")
-
-	- /metrics ("GET")
-	- /export/{treeindex} ("POST")
-
-	- /fastinsertjson/{filename} ("GET")
-	- /fastinsertlist/{filename} ("GET")
-
-	- /readdir ("GET")
-`
-	return infostring
-}
-
-// indexHandler
 func indexHandler(w http.ResponseWriter, r *http.Request) {
-	_, _ = fmt.Fprintf(w, index())
+	log.Println("[ ] The indexHandler was accessed")
+	_, _ = fmt.Fprintf(w, indexEndpoint())
 }
 
-// readdirHandler reads the content of a given directory and prints it
-func readdirHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	dirname := vars["dirname"]
-	log.Printf("Reading from %s", dirname)
+func newTreeHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("[ ] The newTreeHandler was accessed")
 
-	files, err := ioutil.ReadDir(fmt.Sprintf("./%s", dirname))
-	log.Println(files)
-	log.Println(err)
-	if err != nil {
-		fmt.Println(err)
+	// get the width of the most outer box of the tree by parsing http-post parameters
+	errParseForm := r.ParseForm() // parse the POST form
+	if errParseForm != nil {      // handle errors
+		panic(errParseForm)
 	}
 
-	for _, f := range files {
-		fmt.Println(f.Name())
-		_, _ = fmt.Fprintf(w, "%v", f.Name())
-	}
+	// parse the width
+	width, _ := strconv.ParseFloat(r.Form.Get("w"), 64)
+
+	// create a new tree in the database width the given width
+	newTreeEndpoint(width)
+
+	_, _ = fmt.Fprintf(w, "OK\n")
 }
 
-// return the amount of galaxies currently present
-func nrofgalaxiesHandler(w http.ResponseWriter, r *http.Request) {
-	_, _ = fmt.Fprintf(w, "%d", len(treeArray))
+func insertStarHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("[ ] The insertStarHandler was accessed")
+
+	// get the star by parsing http-post parameters
+	errParseForm := r.ParseForm() // parse the POST form
+	if errParseForm != nil {      // handle errors
+		panic(errParseForm)
+	}
+
+	// get the star coordinates
+	x, _ := strconv.ParseFloat(r.Form.Get("x"), 64)
+	y, _ := strconv.ParseFloat(r.Form.Get("y"), 64)
+	vx, _ := strconv.ParseFloat(r.Form.Get("vx"), 64)
+	vy, _ := strconv.ParseFloat(r.Form.Get("vy"), 64)
+	m, _ := strconv.ParseFloat(r.Form.Get("m"), 64)
+
+	// get the tree into which the star should be inserted into
+	index, _ := strconv.ParseInt(r.Form.Get("index"), 10, 64)
+
+	// build a star
+	star := structs.Star2D{
+		C: structs.Vec2{
+			X: x,
+			Y: y,
+		},
+		V: structs.Vec2{
+			X: vx,
+			Y: vy,
+		},
+		M: m,
+	}
+
+	insertStarEndpoint(star, index)
+}
+
+func deleteStarsHandler(w http.ResponseWriter, r *http.Request) {
+	deleteStarsEndpoint()
+}
+
+func deleteNodesHandler(w http.ResponseWriter, r *http.Request) {
+	deleteNodesEndpoint()
 }
 
 func main() {
@@ -76,21 +98,25 @@ func main() {
 
 	router.HandleFunc("/", indexHandler).Methods("GET")
 	router.HandleFunc("/new", newTreeHandler).Methods("POST")
-	router.HandleFunc("/printall", printAllHandler).Methods("GET")
-	router.HandleFunc("/insert/{treeindex}", insertStarHandler).Methods("POST")
-	router.HandleFunc("/starlist/{treeindex}", starlistHandler).Methods("GET")
-	router.HandleFunc("/dumptree/{treeindex}", dumptreeHandler).Methods("GET")
-	router.HandleFunc("/updatetotalmass/{treeindex}", updateTotalMassHandler).Methods("GET")
-	router.HandleFunc("/updatecenterofmass/{treeindex}", updateCenterOfMassHandler).Methods("GET")
-	router.HandleFunc("/metrics", metricHandler).Methods("GET")
-	router.HandleFunc("/export/{treeindex}", exportHandler).Methods("POST")
-	router.HandleFunc("/nrofgalaxies", nrofgalaxiesHandler).Methods("GET")
+	router.HandleFunc("/insertStar", insertStarHandler).Methods("POST")
+	router.HandleFunc("/deleteStars", deleteStarsHandler).Methods("POST")
+	router.HandleFunc("/deleteNodes", deleteNodesHandler).Methods("POST")
 
-	router.HandleFunc("/fastinsertjson/{filename}", fastInsertJSONHandler).Methods("GET")
-	router.HandleFunc("/fastinsertlist/{filename}/{treeindex}", fastInsertListHandler).Methods("GET")
+	//router.HandleFunc("/printall", printAllHandler).Methods("GET")
+	//router.HandleFunc("/insert/{treeindex}", insertStarHandler).Methods("POST")
+	//router.HandleFunc("/starlist/{treeindex}", starlistHandler).Methods("GET")
+	//router.HandleFunc("/dumptree/{treeindex}", dumptreeHandler).Methods("GET")
+	//router.HandleFunc("/updatetotalmass/{treeindex}", updateTotalMassHandler).Methods("GET")
+	//router.HandleFunc("/updatecenterofmass/{treeindex}", updateCenterOfMassHandler).Methods("GET")
+	//router.HandleFunc("/metrics", metricHandler).Methods("GET")
+	//router.HandleFunc("/export/{treeindex}", exportHandler).Methods("POST")
+	//router.HandleFunc("/nrofgalaxies", nrofgalaxiesHandler).Methods("GET")
+	//
+	//router.HandleFunc("/fastinsertjson/{filename}", fastInsertJSONHandler).Methods("GET")
+	//router.HandleFunc("/fastinsertlist/{filename}/{treeindex}", fastInsertListHandler).Methods("GET")
+	//
+	//router.HandleFunc("/readdir/{dirname}", readdirHandler).Methods("GET")
 
-	router.HandleFunc("/readdir/{dirname}", readdirHandler).Methods("GET")
-
-	fmt.Println("Database Container up")
-	log.Fatal(http.ListenAndServe(":80", router))
+	fmt.Println("Database Container up on port 8081")
+	log.Fatal(http.ListenAndServe(":8081", router))
 }
