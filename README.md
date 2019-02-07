@@ -18,96 +18,39 @@ This Repo contains the main "database" running an http-api exposing the quadtree
 | `"/export/{treeindex}"` | Export the selected tree to `db/{treeindex}.json` | |
 | `"/fastinsert/{filename}"` | Insert the selected file into a new tree | |
 
+## Tables
 
-## Files
+### nodes
 
-Simple description of each individual function
+```postgresql
+-- Table: public.nodes
 
-### export.go
+-- DROP TABLE public.nodes;
 
-```
-func export(treeindex int64) error {
-    // exports the tree with the given tree index by writing it's json 
-    // to /exports/{treeindex}.json
-}
+CREATE TABLE public.nodes
+(
+    node_id bigint NOT NULL DEFAULT nextval('nodes_node_id_seq'::regclass),
+    box_center_x numeric,
+    box_center_y numeric,
+    box_width numeric,
+    center_of_mass_x numeric,
+    center_of_mass_y numeric,
+    total_mass numeric,
+    depth numeric,
+    star_id bigint,
+    "subnode_A" bigint,
+    "subnode_B" bigint,
+    "subnode_C" bigint,
+    "subnode_D" bigint,
+    CONSTRAINT nodes_pkey PRIMARY KEY (node_id)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
 
-func exportHandler(w http.ResponseWriter, r *http.Request) {
-    // handles request to /export/{treeindex} and uses the export function
-    // to export the selected tree
-}
-```
-
-### update.go
-
-```
-func updateCenterOfMassHandler(w http.ResponseWriter, r *http.Request) {
-    // updates the center of mass of every node in the tree width the given index
-}
-
-func updateTotalMassHandler(w http.ResponseWriter, r *http.Request) {
-    // updates the total mass of every node in the tree with the given index
-}
-```
-
-### import.go
-
-```
-func fastInsertHandler(w http.ResponseWriter, r *http.Request) {
-    // creates a new tree by reading from /db/{filename}.json and inserting the tree
-    // from that file into the treeArray
-    // The function returns the index in which it inserted the tree
-}
+ALTER TABLE public.nodes
+    OWNER to postgres;
 ```
 
-### manage.go
 
-```
-func newTreeHandler(w http.ResponseWriter, r *http.Request) {
-    // creates a new empty tree with the given width
-}
-
-func newTree(width float64) []byte {
-    // creates a new tree and returns it json formatted as a bytestring
-}
-
-func printAllHandler(w http.ResponseWriter, r *http.Request) { 
-    // prints all the trees in the treeArray in json format
-}
-
-func insertStarHandler(w http.ResponseWriter, r *http.Request) {
-    // inserts the given star into the tree
-}
-
-func starlistHandler(w http.ResponseWriter, r *http.Request) {
-    // lists all the stars in the given tree
-}
-
-func dumptreeHandler(w http.ResponseWriter, r *http.Request) {
-    // returns the tree with the given index in json format 
-}
-```
-
-### metrics.go
-
-```
-func metricHandler(w http.ResponseWriter, r *http.Request) {
-    // locally published the databases metrics
-}
-
-func pushMetricsNumOfStars(host string, treeindex int64) {
-    // pushes the metrics of the tree with the given index to the metric-bundler
-    // using the given host and 
-}
-```
-
-### update.go
-
-```
-func updateCenterOfMassHandler(w http.ResponseWriter, r *http.Request) {
-    // updates the center of mass of every node in the tree with the given index
-}
-
-func updateTotalMassHandler(w http.ResponseWriter, r *http.Request) {
-    // updates the total mass in the tree with the given index
-}
-```

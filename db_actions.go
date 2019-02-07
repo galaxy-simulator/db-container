@@ -56,7 +56,7 @@ func newTree(db *sql.DB, width float64) {
 	var currentMaxRootID int64
 	err := db.QueryRow(query).Scan(&currentMaxRootID)
 	if err != nil {
-		log.Fatalf("[E] max root id query: %v", err)
+		log.Fatalf("[E] max root id query: %v\n\t\t\t query: %s\n", err, query)
 	}
 
 	// build the query creating a new node
@@ -65,7 +65,7 @@ func newTree(db *sql.DB, width float64) {
 	// execute the query
 	_, err = db.Query(query)
 	if err != nil {
-		log.Fatalf("[E] insert new node query: %v", err)
+		log.Fatalf("[E] insert new node query: %v\n\t\t\t query: %s\n", err, query)
 	}
 }
 
@@ -80,7 +80,7 @@ func insertStar(db *sql.DB, star structs.Star2D, index int64) {
 	var id int64
 	err := db.QueryRow(query).Scan(&id)
 	if err != nil {
-		log.Fatalf("[E] Get root node id query: %v", err)
+		log.Fatalf("[E] Get root node id query: %v\n\t\t\t query: %s\n", err, query)
 	}
 
 	// insert the star into the tree (using it's ID) starting at the root
@@ -105,7 +105,7 @@ func insertIntoStars(star structs.Star2D, db *sql.DB) int64 {
 	var starID int64
 	err := db.QueryRow(query).Scan(&starID)
 	if err != nil {
-		log.Fatalf("[E] insert query: %v", err)
+		log.Fatalf("[E] insert query: %v\n\t\t\t query: %s\n", err, query)
 	}
 
 	return starID
@@ -139,7 +139,7 @@ func insertIntoTree(starID int64, db *sql.DB, nodeID int64) {
 	// if the node is a leaf and does not contain a star
 	// insert the star into the node and subdivide it
 	if isLeaf == true && containsStar == false {
-		log.Println("[~] isLeaf == true && containsStar == false")
+		log.Printf("[~] isLeaf == true && containsStar == false \t\t %d", starID)
 		directInsert(starID, db, nodeID)
 		subdivide(db, nodeID)
 	}
@@ -148,50 +148,29 @@ func insertIntoTree(starID int64, db *sql.DB, nodeID int64) {
 	// insert the preexisting star into the correct subtree
 	// insert the new star into the subtree
 	if isLeaf == false && containsStar == true {
-		log.Println("[~] isLeaf == false && containsStar == true")
+		log.Printf("[~] isLeaf == false && containsStar == true \t\t %d", starID)
 
 		// Stage 1: Inserting the blocking star
-		log.Println("[i] Getting the blocking-Star-ID")
-		blockingStar := getBlockingStar(db, nodeID)
-		log.Println("[i] Done")
+		blockingStarID := getBlockingStarID(db, nodeID)                       // get the id of the star blocking the node
+		blockingStar := getStar(db, blockingStarID)                           // get the actual star
+		blockingStarQuadrant := quadrant(db, blockingStar, nodeID)            // find out in which quadrant it belongs
+		quadrantNodeID := getQuadrantNodeID(db, nodeID, blockingStarQuadrant) // get the nodeID of that quadrant
+		insertIntoTree(blockingStarID, db, quadrantNodeID)                    // insert the star into that node
+		removeStarFromNode(db, nodeID)                                        // remove the blocking star from the node it was blocking
 
-		log.Println("[i] Getting the quadrant the blocking star is inside of")
-		blockingStarQuadrant := quadrant(db, blockingStar, nodeID)
-		log.Println("[i] Done")
-
-		log.Println("[i] Getting the quadrant node id")
-		quadrantNodeID := getQuadrantNodeID(db, nodeID, blockingStarQuadrant)
-		log.Println("[i] Done")
-
-		log.Printf("[i] Inserting the star into the new quadrant %d (%d)", quadrantNodeID, blockingStarQuadrant)
-		insertIntoTree(starID, db, quadrantNodeID)
-		log.Println("[i] Done")
-
-		removeStarFromNode(db, nodeID)
-
-		log.Println("[i] Getting the blocking-Star-ID")
-		star := getStar(db, starID)
-		log.Println("[i] Done")
-
-		// Stage 2: Inserting the star that should originally be inserted
-		log.Println("[i] Getting the quadrant the star is inside of")
-		starQuadrant := quadrant(db, star, nodeID)
-		log.Println("[i] Done")
-
-		log.Println("[i] Getting the quadrant node id")
-		quadrantNodeID = getQuadrantNodeID(db, nodeID, starQuadrant)
-		log.Println("[i] Done")
-
-		log.Printf("[i] Inserting the star into the new quadrant %d (%d)", quadrantNodeID, starQuadrant)
-		insertIntoTree(starID, db, quadrantNodeID)
-		log.Println("[i] Done")
+		// Stage 1: Inserting the actual star
+		insertIntoTree(starID, db, nodeID)
 	}
 
 	// if the node is not a leaf and does not contain a star
 	// insert the new star into the subtree
 	if isLeaf == false && containsStar == false {
-		log.Println("[~] isLeaf == false && containsStar == false")
-		directInsert(starID, db, nodeID)
+		log.Printf("[~] isLeaf == false && containsStar == false \t\t %d", starID)
+
+		star := getStar(db, starID)                                   // get the actual star
+		starQuadrant := quadrant(db, star, nodeID)                    // find out in which quadrant it belongs
+		quadrantNodeID := getQuadrantNodeID(db, nodeID, starQuadrant) // get the if of that quadrant
+		insertIntoTree(starID, db, quadrantNodeID)                    // insert the star into that quadrant
 	}
 }
 
@@ -203,7 +182,7 @@ func containsStar(db *sql.DB, id int64) bool {
 	query := fmt.Sprintf("SELECT star_id FROM nodes WHERE node_id=%d", id)
 	err := db.QueryRow(query).Scan(&starID)
 	if err != nil {
-		log.Fatalf("[E] containsStar query: %v", err)
+		log.Fatalf("[E] containsStar query: %v\n\t\t\t query: %s\n", err, query)
 	}
 
 	if starID != 0 {
@@ -220,7 +199,7 @@ func isLeaf(db *sql.DB, nodeID int64) bool {
 	query := fmt.Sprintf("SELECT COALESCE(isleaf, FALSE) FROM nodes WHERE node_id=%d", nodeID)
 	err := db.QueryRow(query).Scan(&isLeaf)
 	if err != nil {
-		log.Fatalf("[E] isLeaf query: %v", err)
+		log.Fatalf("[E] isLeaf query: %v\n\t\t\t query: %s\n", err, query)
 	}
 
 	if isLeaf == true {
@@ -239,7 +218,7 @@ func directInsert(starID int64, db *sql.DB, nodeID int64) {
 	// Execute the query
 	_, err := db.Query(query)
 	if err != nil {
-		log.Fatalf("[E] directInsert query: %v", err)
+		log.Fatalf("[E] directInsert query: %v\n\t\t\t query: %s\n", err, query)
 	}
 }
 
@@ -250,8 +229,8 @@ func subdivide(db *sql.DB, nodeID int64) {
 	boxCenter := getBoxCenter(db, nodeID)
 	originalDepth := getNodeDepth(db, nodeID)
 
-	log.Printf("[i] original box width: %f", boxWidth)
-	log.Printf("[i] original box center: %f", boxCenter)
+	log.Printf("[i] original box width: %f\n", boxWidth)
+	log.Printf("[i] original box center: %f\n", boxCenter)
 
 	// calculate the new positions
 	newPosX := boxCenter[0] + (boxWidth / 2)
@@ -260,8 +239,8 @@ func subdivide(db *sql.DB, nodeID int64) {
 	newNegY := boxCenter[1] - (boxWidth / 2)
 	newWidth := boxWidth / 2
 
-	log.Printf("[i] new box width: %f", newWidth)
-	log.Printf("[i] new box center: [±%f, ±%f]", newPosX, newPosY)
+	log.Printf("[i] new box width: %f\n", newWidth)
+	log.Printf("[i] new box center: [±%f, ±%f]\n", newPosX, newPosY)
 
 	// create new news with those positions
 	newNodeIDA := newNode(db, newPosX, newPosY, newWidth, originalDepth+1)
@@ -277,7 +256,7 @@ func subdivide(db *sql.DB, nodeID int64) {
 	// Execute the query
 	_, err := db.Query(query)
 	if err != nil {
-		log.Fatalf("[E] subdivide query: %v", err)
+		log.Fatalf("[E] subdivide query: %v\n\t\t\t query: %s\n", err, query)
 	}
 }
 
@@ -288,7 +267,7 @@ func getBoxWidth(db *sql.DB, nodeID int64) float64 {
 	query := fmt.Sprintf("SELECT box_width FROM nodes WHERE node_id=%d", nodeID)
 	err := db.QueryRow(query).Scan(&boxWidth)
 	if err != nil {
-		log.Fatalf("[E] getBoxWidth query: %v", err)
+		log.Fatalf("[E] getBoxWidth query: %v\n\t\t\t query: %s\n", err, query)
 	}
 
 	return boxWidth
@@ -303,14 +282,14 @@ func getBoxCenter(db *sql.DB, nodeID int64) []float64 {
 	query := fmt.Sprintf("SELECT box_center FROM nodes WHERE node_id=%d", nodeID)
 	err := db.QueryRow(query).Scan(&boxCenter)
 	if err != nil {
-		log.Fatalf("[E] getBoxCenter query: %v", err)
+		log.Fatalf("[E] getBoxCenter query: %v\n\t\t\t query: %s\n", err, query)
 	}
 
 	boxCenterX, parseErr := strconv.ParseFloat("0", 64)
 	boxCenterY, parseErr := strconv.ParseFloat("0", 64)
 	if parseErr != nil {
-		log.Fatalf("[E] parse boxCenter: %v", err)
-		log.Fatalf("[E] parse boxCenter: %s", boxCenter)
+		log.Fatalf("[E] parse boxCenter: %v\n\t\t\t query: %s\n", err, query)
+		log.Fatalf("[E] parse boxCenter: %s\n", boxCenter)
 	}
 
 	boxCenterFloat := []float64{boxCenterX, boxCenterY}
@@ -329,13 +308,13 @@ func newNode(db *sql.DB, posX float64, posY float64, width float64, depth int64)
 	// execute the query
 	err := db.QueryRow(query).Scan(&nodeID)
 	if err != nil {
-		log.Fatalf("[E] newNode query: %v", err)
+		log.Fatalf("[E] newNode query: %v\n\t\t\t query: %s\n", err, query)
 	}
 
 	return nodeID
 }
 
-func getBlockingStar(db *sql.DB, nodeID int64) structs.Star2D {
+func getBlockingStarID(db *sql.DB, nodeID int64) int64 {
 	// 1. get the star id from the node
 	// 2. get the stars coordinates from the stars table
 	// 3. pack the star and return it
@@ -345,33 +324,10 @@ func getBlockingStar(db *sql.DB, nodeID int64) structs.Star2D {
 	query := fmt.Sprintf("SELECT star_id FROM nodes WHERE node_id=%d", nodeID)
 	err := db.QueryRow(query).Scan(&starID)
 	if err != nil {
-		log.Fatalf("[E] getBlockingStar id query: %v", err)
+		log.Fatalf("[E] getBlockingStarID id query: %v\n\t\t\t query: %s\n", err, query)
 	}
 
-	fmt.Printf("[i] Getting star with the id %d\n", starID)
-
-	var x, y, vx, vy, m float64
-
-	// get the star from the stars table
-	query = fmt.Sprintf("SELECT x, y, vx, vy, m FROM stars WHERE star_id=%d", starID)
-	err = db.QueryRow(query).Scan(&x, &y, &vx, &vy, &m)
-	if err != nil {
-		log.Fatalf("[E] getBlockingStar star query: %v", err)
-	}
-
-	star := structs.Star2D{
-		C: structs.Vec2{
-			X: x,
-			Y: y,
-		},
-		V: structs.Vec2{
-			X: vx,
-			Y: vy,
-		},
-		M: m,
-	}
-
-	return star
+	return starID
 }
 
 // deleteAll Stars deletes all the rows in the stars table
@@ -383,7 +339,7 @@ func deleteAllStars(db *sql.DB) {
 	// execute the query
 	_, err := db.Query(query)
 	if err != nil {
-		log.Fatalf("[E] deleteAllStars query: %v", err)
+		log.Fatalf("[E] deleteAllStars query: %v\n\t\t\t query: %s\n", err, query)
 	}
 }
 
@@ -396,7 +352,7 @@ func deleteAllNodes(db *sql.DB) {
 	// execute the query
 	_, err := db.Query(query)
 	if err != nil {
-		log.Fatalf("[E] deleteAllStars query: %v", err)
+		log.Fatalf("[E] deleteAllStars query: %v\n\t\t\t query: %s\n", err, query)
 	}
 }
 
@@ -412,7 +368,7 @@ func getNodeDepth(db *sql.DB, nodeID int64) int64 {
 	// Execute the query
 	err := db.QueryRow(query).Scan(&depth)
 	if err != nil {
-		log.Fatalf("[E] getNodeDepth query: %v", err)
+		log.Fatalf("[E] getNodeDepth query: %v \n\t\t\t query: %s\n", err, query)
 	}
 
 	return depth
@@ -455,7 +411,7 @@ func getQuadrantNodeID(db *sql.DB, parentNodeID int64, quadrant int64) int64 {
 	query := fmt.Sprintf("SELECT subnode[1], subnode[2], subnode[3], subnode[4] FROM nodes WHERE node_id=%d", parentNodeID)
 	err := db.QueryRow(query).Scan(&a, &b, &c, &d)
 	if err != nil {
-		log.Fatalf("[E] getQuadrantNodeID star query: %v", err)
+		log.Fatalf("[E] getQuadrantNodeID star query: %v \n\t\t\tquery: %s\n", err, query)
 	}
 
 	log.Printf("[o] %v", a)
@@ -479,26 +435,16 @@ func getQuadrantNodeID(db *sql.DB, parentNodeID int64, quadrant int64) int64 {
 	return -1
 }
 
-func removeStarFromNode(db *sql.DB, nodeID int64) {
-
-	// build the query
-	query := fmt.Sprintf("UPDATE nodes SET star_id=0 WHERE node_id=%d", nodeID)
-
-	// Execute the query
-	_, err := db.Query(query)
-	if err != nil {
-		log.Fatalf("[E] removeStarFromNode query: %v", err)
-	}
-}
-
 func getStar(db *sql.DB, starID int64) structs.Star2D {
 	var x, y, vx, vy, m float64
+
+	log.Printf("[i] getStar starID: %d", starID)
 
 	// get the star from the stars table
 	query := fmt.Sprintf("SELECT x, y, vx, vy, m FROM stars WHERE star_id=%d", starID)
 	err := db.QueryRow(query).Scan(&x, &y, &vx, &vy, &m)
 	if err != nil {
-		log.Fatalf("[E] getStar star query: %v", err)
+		log.Fatalf("[E] getStar query: %v \n\t\t\tquery: %s\n", err, query)
 	}
 
 	star := structs.Star2D{
@@ -514,4 +460,17 @@ func getStar(db *sql.DB, starID int64) structs.Star2D {
 	}
 
 	return star
+}
+
+func removeStarFromNode(db *sql.DB, nodeID int64) {
+	log.Printf("[i] Removing the star from the node with the id %d", nodeID)
+
+	// build the query
+	query := fmt.Sprintf("UPDATE nodes SET star_id=0 WHERE node_id=%d", nodeID)
+
+	// Execute the query
+	_, err := db.Query(query)
+	if err != nil {
+		log.Fatalf("[E] removeStarFromNode query: %v\n\t\t\t query: %s\n", err, query)
+	}
 }
