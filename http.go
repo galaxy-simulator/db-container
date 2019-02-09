@@ -16,9 +16,7 @@
 
 package main
 
-import (
-	"git.darknebu.la/GalaxySimulator/structs"
-)
+import "git.darknebu.la/GalaxySimulator/structs"
 
 // IndexEndpoint gives a basic overview over the api
 func indexEndpoint() string {
@@ -49,24 +47,35 @@ API:
 
 // newTree creates a new tree
 func newTreeEndpoint(width float64) {
-	db := connectToDB()
-	newTree(db, width)
+	newTree(width)
 }
 
 // insertStarEndpoint inserts the star into the tree with the given index
 func insertStarEndpoint(star structs.Star2D, index int64) {
-	db := connectToDB()
-	insertStar(db, star, index)
+	insertStar(star, index)
+}
+
+// insertListEndpoint inserts the star into the tree with the given index
+func insertListEndpoint(filename string) {
+	insertList(filename)
 }
 
 // deleteStarsEndpoint deletes all the rows from the stars table
 func deleteStarsEndpoint() {
-	db := connectToDB()
-	deleteAllStars(db)
+	deleteAllStars()
 }
 
 // deleteNodesEndpoint deletes all the rows from the nodes table
 func deleteNodesEndpoint() {
-	db := connectToDB()
-	deleteAllNodes(db)
+	deleteAllNodes()
+}
+
+func listOfStarsGoEndpoint() []structs.Star2D {
+	listOfStars := getListOfStarsGo()
+	return listOfStars
+}
+
+func listOfStarsCsvEndpoint() []string {
+	listOfStars := getListOfStarsCsv()
+	return listOfStars
 }
