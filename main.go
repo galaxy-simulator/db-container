@@ -17,6 +17,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"git.darknebu.la/GalaxySimulator/structs"
 	"log"
@@ -25,6 +26,10 @@ import (
 
 	"github.com/gorilla/mux"
 	//"git.darknebu.la/GalaxySimulator/structs"
+)
+
+var (
+	db *sql.DB
 )
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
@@ -116,6 +121,9 @@ func main() {
 	//router.HandleFunc("/fastinsertlist/{filename}/{treeindex}", fastInsertListHandler).Methods("GET")
 	//
 	//router.HandleFunc("/readdir/{dirname}", readdirHandler).Methods("GET")
+
+	db = connectToDB()
+	db.SetMaxOpenConns(75)
 
 	fmt.Println("Database Container up on port 8081")
 	log.Fatal(http.ListenAndServe(":8081", router))
