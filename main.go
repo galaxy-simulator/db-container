@@ -90,6 +90,20 @@ func insertStarHandler(w http.ResponseWriter, r *http.Request) {
 	insertStarEndpoint(star, index)
 }
 
+func insertListHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("[ ] The insertStarHandler was accessed")
+
+	// get the star by parsing http-post parameters
+	errParseForm := r.ParseForm() // parse the POST form
+	if errParseForm != nil {      // handle errors
+		panic(errParseForm)
+	}
+
+	filename := r.Form.Get("filename")
+
+	insertListEndpoint(filename)
+}
+
 func deleteStarsHandler(w http.ResponseWriter, r *http.Request) {
 	deleteStarsEndpoint()
 }
@@ -103,14 +117,12 @@ func main() {
 
 	router.HandleFunc("/", indexHandler).Methods("GET")
 	router.HandleFunc("/new", newTreeHandler).Methods("POST")
-	router.HandleFunc("/insertStar", insertStarHandler).Methods("POST")
 	router.HandleFunc("/deleteStars", deleteStarsHandler).Methods("POST")
 	router.HandleFunc("/deleteNodes", deleteNodesHandler).Methods("POST")
 
-	//router.HandleFunc("/printall", printAllHandler).Methods("GET")
-	//router.HandleFunc("/insert/{treeindex}", insertStarHandler).Methods("POST")
-	//router.HandleFunc("/starlist/{treeindex}", starlistHandler).Methods("GET")
-	//router.HandleFunc("/dumptree/{treeindex}", dumptreeHandler).Methods("GET")
+	router.HandleFunc("/insertStar", insertStarHandler).Methods("POST")
+	router.HandleFunc("/insertList", insertListHandler).Methods("POST")
+
 	//router.HandleFunc("/updatetotalmass/{treeindex}", updateTotalMassHandler).Methods("GET")
 	//router.HandleFunc("/updatecenterofmass/{treeindex}", updateCenterOfMassHandler).Methods("GET")
 	//router.HandleFunc("/metrics", metricHandler).Methods("GET")
