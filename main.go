@@ -112,6 +112,26 @@ func deleteNodesHandler(w http.ResponseWriter, r *http.Request) {
 	deleteNodesEndpoint()
 }
 
+func getListOfStarsGoHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("[ ] The getListOfStarsGoHandler was accessed")
+
+	listOfStars := listOfStarsGoEndpoint()
+
+	for _, star := range listOfStars {
+		_, _ = fmt.Fprintf(w, "%v\n", star)
+	}
+}
+
+func getListOfStarsCsvHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("[ ] The getListOfStarsCsvHandler was accessed")
+
+	listOfStars := listOfStarsCsvEndpoint()
+
+	for _, star := range listOfStars {
+		_, _ = fmt.Fprintf(w, "%v\n", star)
+	}
+}
+
 func main() {
 	router := mux.NewRouter()
 
@@ -119,6 +139,8 @@ func main() {
 	router.HandleFunc("/new", newTreeHandler).Methods("POST")
 	router.HandleFunc("/deleteStars", deleteStarsHandler).Methods("POST")
 	router.HandleFunc("/deleteNodes", deleteNodesHandler).Methods("POST")
+	router.HandleFunc("/starlist/go", getListOfStarsGoHandler).Methods("GET")
+	router.HandleFunc("/starlist/csv", getListOfStarsCsvHandler).Methods("GET")
 
 	router.HandleFunc("/insertStar", insertStarHandler).Methods("POST")
 	router.HandleFunc("/insertList", insertListHandler).Methods("POST")
