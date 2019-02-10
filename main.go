@@ -132,6 +132,21 @@ func getListOfStarsCsvHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func updateTotalMassHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("[ ] The updateTotalMassHandler was accessed")
+
+	// get the star by parsing http-post parameters
+	errParseForm := r.ParseForm() // parse the POST form
+	if errParseForm != nil {      // handle errors
+		panic(errParseForm)
+	}
+
+	// get the tree into which the star should be inserted into
+	index, _ := strconv.ParseInt(r.Form.Get("index"), 10, 64)
+
+	updateTotalMassEndpoint(index)
+}
+
 func main() {
 	router := mux.NewRouter()
 
@@ -145,16 +160,12 @@ func main() {
 	router.HandleFunc("/insertStar", insertStarHandler).Methods("POST")
 	router.HandleFunc("/insertList", insertListHandler).Methods("POST")
 
-	//router.HandleFunc("/updatetotalmass/{treeindex}", updateTotalMassHandler).Methods("GET")
+	router.HandleFunc("/updatetotalmass", updateTotalMassHandler).Methods("POST")
+
 	//router.HandleFunc("/updatecenterofmass/{treeindex}", updateCenterOfMassHandler).Methods("GET")
 	//router.HandleFunc("/metrics", metricHandler).Methods("GET")
 	//router.HandleFunc("/export/{treeindex}", exportHandler).Methods("POST")
 	//router.HandleFunc("/nrofgalaxies", nrofgalaxiesHandler).Methods("GET")
-	//
-	//router.HandleFunc("/fastinsertjson/{filename}", fastInsertJSONHandler).Methods("GET")
-	//router.HandleFunc("/fastinsertlist/{filename}/{treeindex}", fastInsertListHandler).Methods("GET")
-	//
-	//router.HandleFunc("/readdir/{dirname}", readdirHandler).Methods("GET")
 
 	db = connectToDB()
 	db.SetMaxOpenConns(75)
