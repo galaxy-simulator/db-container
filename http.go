@@ -16,7 +16,9 @@
 
 package main
 
-import "git.darknebu.la/GalaxySimulator/structs"
+import (
+	"git.darknebu.la/GalaxySimulator/structs"
+)
 
 // IndexEndpoint gives a basic overview over the api
 func indexEndpoint() string {
@@ -78,4 +80,8 @@ func listOfStarsGoEndpoint() []structs.Star2D {
 func listOfStarsCsvEndpoint() []string {
 	listOfStars := getListOfStarsCsv()
 	return listOfStars
+}
+
+func updateTotalMassEndpoint(index int64) {
+	updateTotalMass(index)
 }
