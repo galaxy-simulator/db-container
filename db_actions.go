@@ -31,14 +31,14 @@ import (
 )
 
 const (
-	DB_USER    = "postgres"
-	DB_NAME    = "postgres"
-	DB_SSLMODE = "disable"
+	DBUSER    = "postgres"
+	DBNAME    = "postgres"
+	DBSSLMODE = "disable"
 )
 
-//connectToDB returns a pointer to an sql database writing to the database
+// connectToDB returns a pointer to an sql database writing to the database
 func connectToDB() *sql.DB {
-	connStr := fmt.Sprintf("user=%s dbname=%s sslmode=%s", DB_USER, DB_NAME, DB_SSLMODE)
+	connStr := fmt.Sprintf("user=%s dbname=%s sslmode=%s", DBUSER, DBNAME, DBSSLMODE)
 	db := dbConnect(connStr)
 	return db
 }
@@ -54,7 +54,7 @@ func dbConnect(connStr string) *sql.DB {
 	return db
 }
 
-//func newTree(db *sql.DB, width float64) {
+// newTree creates a new tree with the given width
 func newTree(width float64) {
 	// get the current max root id
 	query := fmt.Sprintf("SELECT COALESCE(max(root_id), 0) FROM nodes")
@@ -74,6 +74,7 @@ func newTree(width float64) {
 	}
 }
 
+// insertStar inserts the given star into the stars table and the nodes table tree
 func insertStar(star structs.Star2D, index int64) {
 	start := time.Now()
 	// insert the star into the stars table
@@ -115,6 +116,7 @@ func insertIntoStars(star structs.Star2D) int64 {
 	return starID
 }
 
+// insert into tree inserts the given star into the tree starting at the node with the given node id
 func insertIntoTree(starID int64, nodeID int64) {
 	//starRaw := getStar(starID)
 	//nodeCenter := getBoxCenter(nodeID)
@@ -200,8 +202,7 @@ func insertIntoTree(starID int64, nodeID int64) {
 	}
 }
 
-// containsStar returns true if the node with the given id contains a star
-// and returns false if not.
+// containsStar returns true if the node with the given id contains a star and returns false if not.
 func containsStar(id int64) bool {
 	var starID int64
 
@@ -248,6 +249,7 @@ func directInsert(starID int64, nodeID int64) {
 	}
 }
 
+// subdivide subdivides the given node creating four child nodes
 func subdivide(nodeID int64) {
 	boxWidth := getBoxWidth(nodeID)
 	boxCenter := getBoxCenter(nodeID)
@@ -331,6 +333,7 @@ func newNode(x float64, y float64, width float64, depth int64) int64 {
 	return nodeID
 }
 
+// getStarID returns the id of the star inside of the node with the given ID
 func getStarID(nodeID int64) int64 {
 	// get the star id from the node
 	var starID int64
@@ -439,6 +442,7 @@ func getQuadrantNodeID(parentNodeID int64, quadrant int64) int64 {
 	return -1
 }
 
+// getStar returns the star with the given ID from the stars table
 func getStar(starID int64) structs.Star2D {
 	var x, y, vx, vy, m float64
 
@@ -464,6 +468,7 @@ func getStar(starID int64) structs.Star2D {
 	return star
 }
 
+// getStarMass returns the mass if the star with the given ID
 func getStarMass(starID int64) float64 {
 	var mass float64
 
@@ -477,6 +482,21 @@ func getStarMass(starID int64) float64 {
 	return mass
 }
 
+// getNodeTotalMass returns the total mass of the node with the given ID and its children
+func getNodeTotalMass(nodeID int64) float64 {
+	var mass float64
+
+	// get the star from the stars table
+	query := fmt.Sprintf("SELECT total_mass FROM nodes WHERE node_id=%d", nodeID)
+	err := db.QueryRow(query).Scan(&mass)
+	if err != nil {
+		log.Fatalf("[ E ] getStarMass query: %v \n\t\t\tquery: %s\n", err, query)
+	}
+
+	return mass
+}
+
+// removeStarFromNode removes the star from the node with the given ID
 func removeStarFromNode(nodeID int64) {
 	// build the query
 	query := fmt.Sprintf("UPDATE nodes SET star_id=0 WHERE node_id=%d", nodeID)
@@ -489,6 +509,7 @@ func removeStarFromNode(nodeID int64) {
 	}
 }
 
+// getListOfStarsGo returns the list of stars in go struct format
 func getListOfStarsGo() []structs.Star2D {
 	// build the query
 	query := fmt.Sprintf("SELECT * FROM stars")
@@ -530,6 +551,7 @@ func getListOfStarsGo() []structs.Star2D {
 	return starList
 }
 
+// getListOfStarsCsv returns an array of strings containing the coordinates of all the stars in the stars table
 func getListOfStarsCsv() []string {
 	// build the query
 	query := fmt.Sprintf("SELECT * FROM stars")
@@ -560,6 +582,7 @@ func getListOfStarsCsv() []string {
 	return starList
 }
 
+// insertList inserts all the stars in the given .csv into the stars and nodes table
 func insertList(filename string) {
 	// open the file
 	content, readErr := ioutil.ReadFile(filename)
@@ -666,4 +689,114 @@ func updateTotalMassNode(nodeID int64) float64 {
 	fmt.Printf("nodeID: %d \t totalMass: %f\n", nodeID, totalmass)
 
 	return totalmass
+}
+
+// updateCenterOfMass recursively updates the center of mass of all the nodes starting at the node with the given
+// root index
+func updateCenterOfMass(index int64) {
+	rootNodeID := getRootNodeID(index)
+	log.Printf("RootID: %d", rootNodeID)
+	updateCenterOfMassNode(rootNodeID)
+}
+
+// updateCenterOfMassNode updates the center of mass of the node with the given nodeID recursively
+func updateCenterOfMassNode(nodeID int64) structs.Vec2 {
+	var nominatorX float64
+	var deNominatorX float64
+	var nominatorY float64
+	var deNominatorY float64
+
+	var centerOfMassX float64
+	var centerOfMassY float64
+	var centerOfMass structs.Vec2
+
+	// get the subnode ids
+	var subnode [4]int64
+
+	query := fmt.Sprintf("SELECT subnode[1], subnode[2], subnode[3], subnode[4] FROM nodes WHERE node_id=%d", nodeID)
+	err := db.QueryRow(query).Scan(&subnode[0], &subnode[1], &subnode[2], &subnode[3])
+	if err != nil {
+		log.Fatalf("[ E ] updateCenterOfMassNode query: %v\n\t\t\t query: %s\n", err, query)
+	}
+
+	// iterate over all subnodes updating their total masses
+	for _, subnodeID := range subnode {
+		fmt.Println("----------------------------")
+		fmt.Printf("SubdnodeID: %d\n", subnodeID)
+		if subnodeID != 0 {
+			nominatorX += updateCenterOfMassNode(subnodeID).X * getNodeTotalMass(subnodeID)
+			deNominatorX += getNodeTotalMass(subnodeID)
+			nominatorY += updateCenterOfMassNode(subnodeID).Y * getNodeTotalMass(subnodeID)
+			deNominatorY += getNodeTotalMass(subnodeID)
+		} else {
+			log.Printf("Getting the starID using the nodeID %d", nodeID)
+			starID := getStarID(nodeID)
+			if starID != 0 {
+				// as the cell contains only a single star, the center of mass is the position of that single star
+				centerOfMass.X = getStar(starID).C.X
+				centerOfMass.Y = getStar(starID).C.Y
+				break
+			}
+		}
+		fmt.Println("----------------------------")
+	}
+
+	// if the center of mass has not been set yet, set it
+	if centerOfMass == (structs.Vec2{0, 0}) {
+		if deNominatorX != 0 || deNominatorY != 0 {
+			centerOfMassX = nominatorX / deNominatorX
+			centerOfMassY = nominatorY / deNominatorY
+		}
+		centerOfMass = structs.Vec2{centerOfMassX, centerOfMassY}
+	}
+
+	query = fmt.Sprintf("UPDATE nodes SET center_of_mass='{%f, %f}' WHERE node_id=%d", centerOfMassX, centerOfMassY, nodeID)
+	_, err = db.Query(query)
+	if err != nil {
+		log.Fatalf("[ E ] insert center_of_mass query: %v\n\t\t\t query: %s\n", err, query)
+	}
+
+	fmt.Printf("nodeID: %d \t totalMass: %v\n", nodeID, centerOfMass)
+
+	return centerOfMass
+}
+
+// genForestTree generates a forest representation of the tree with the given index
+func genForestTree(index int64) string {
+	rootNodeID := getRootNodeID(index)
+	return genForestTreeNode(rootNodeID)
+}
+
+// genForestTreeNodes returns a sub-representation of a given node in forest format
+func genForestTreeNode(nodeID int64) string {
+	var returnString string
+
+	// get the subnode ids
+	var subnode [4]int64
+
+	query := fmt.Sprintf("SELECT subnode[1], subnode[2], subnode[3], subnode[4] FROM nodes WHERE node_id=%d", nodeID)
+	err := db.QueryRow(query).Scan(&subnode[0], &subnode[1], &subnode[2], &subnode[3])
+	if err != nil {
+		log.Fatalf("[ E ] updateTotalMassNode query: %v\n\t\t\t query: %s\n", err, query)
+	}
+
+	returnString += "["
+
+	// iterate over all subnodes updating their total masses
+	for _, subnodeID := range subnode {
+		if subnodeID != 0 {
+			returnString += genForestTreeNode(subnodeID)
+		} else {
+
+			// get the starID for getting the star mass
+			starID := getStarID(nodeID)
+			returnString += fmt.Sprintf("[%d]", starID)
+			// break, this stops a star from being counted multiple (4) times
+			break
+		}
+	}
+
+	returnString += "]"
+
+	return returnString
 }
