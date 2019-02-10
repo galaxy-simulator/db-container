@@ -148,7 +148,7 @@ func insertIntoTree(starID int64, nodeID int64) {
 		//tree := printTree(nodeID)
 
 		// Stage 1: Inserting the blocking star
-		blockingStarID := getBlockingStarID(nodeID)                       // get the id of the star blocking the node
+		blockingStarID := getStarID(nodeID)                               // get the id of the star blocking the node
 		blockingStar := getStar(blockingStarID)                           // get the actual star
 		blockingStarQuadrant := quadrant(blockingStar, nodeID)            // find out in which quadrant it belongs
 		quadrantNodeID := getQuadrantNodeID(nodeID, blockingStarQuadrant) // get the nodeID of that quadrant
@@ -175,7 +175,7 @@ func insertIntoTree(starID int64, nodeID int64) {
 	if isLeaf == false && containsStar == true {
 		//log.Printf("Case 3, \t %v \t %v", nodeWidth, nodeCenter)
 		// Stage 1: Inserting the blocking star
-		blockingStarID := getBlockingStarID(nodeID)                       // get the id of the star blocking the node
+		blockingStarID := getStarID(nodeID)                               // get the id of the star blocking the node
 		blockingStar := getStar(blockingStarID)                           // get the actual star
 		blockingStarQuadrant := quadrant(blockingStar, nodeID)            // find out in which quadrant it belongs
 		quadrantNodeID := getQuadrantNodeID(nodeID, blockingStarQuadrant) // get the nodeID of that quadrant
@@ -331,13 +331,13 @@ func newNode(x float64, y float64, width float64, depth int64) int64 {
 	return nodeID
 }
 
-func getBlockingStarID(nodeID int64) int64 {
+func getStarID(nodeID int64) int64 {
 	// get the star id from the node
 	var starID int64
 	query := fmt.Sprintf("SELECT star_id FROM nodes WHERE node_id=%d", nodeID)
 	err := db.QueryRow(query).Scan(&starID)
 	if err != nil {
-		log.Fatalf("[ E ] getBlockingStarID id query: %v\n\t\t\t query: %s\n", err, query)
+		log.Fatalf("[ E ] getStarID id query: %v\n\t\t\t query: %s\n", err, query)
 	}
 
 	return starID
@@ -464,6 +464,19 @@ func getStar(starID int64) structs.Star2D {
 	return star
 }
 
+func getStarMass(starID int64) float64 {
+	var mass float64
+
+	// get the star from the stars table
+	query := fmt.Sprintf("SELECT m FROM stars WHERE star_id=%d", starID)
+	err := db.QueryRow(query).Scan(&mass)
+	if err != nil {
+		log.Fatalf("[ E ] getStarMass query: %v \n\t\t\tquery: %s\n", err, query)
+	}
+
+	return mass
+}
+
 func removeStarFromNode(nodeID int64) {
 	// build the query
 	query := fmt.Sprintf("UPDATE nodes SET star_id=0 WHERE node_id=%d", nodeID)
@@ -587,4 +600,70 @@ func insertList(filename string) {
 		fmt.Printf("Inserting (%f, %f)\n", star.C.X, star.C.Y)
 		insertStar(star, 1)
 	}
+}
+
+// getRootNodeID gets a tree index and returns the nodeID of its root node
+func getRootNodeID(index int64) int64 {
+	var nodeID int64
+
+	query := fmt.Sprintf("SELECT node_id FROM nodes WHERE root_id=%d", index)
+	err := db.QueryRow(query).Scan(&nodeID)
+	if err != nil {
+		log.Fatalf("[ E ] getRootNodeID query: %v\n\t\t\t query: %s\n", err, query)
+	}
+
+	return nodeID
+}
+
+// updateTotalMass gets a tree index and returns the nodeID of the trees root node
+func updateTotalMass(index int64) {
+	rootNodeID := getRootNodeID(index)
+	log.Printf("RootID: %d", rootNodeID)
+	updateTotalMassNode(rootNodeID)
+}
+
+// updateTotalMassNode updates the total mass of the given node
+func updateTotalMassNode(nodeID int64) float64 {
+	var totalmass float64
+
+	// get the subnode ids
+	var subnode [4]int64
+
+	query := fmt.Sprintf("SELECT subnode[1], subnode[2], subnode[3], subnode[4] FROM nodes WHERE node_id=%d", nodeID)
+	err := db.QueryRow(query).Scan(&subnode[0], &subnode[1], &subnode[2], &subnode[3])
+	if err != nil {
+		log.Fatalf("[ E ] updateTotalMassNode query: %v\n\t\t\t query: %s\n", err, query)
+	}
+
+	// iterate over all subnodes updating their total masses
+	for _, subnodeID := range subnode {
+		fmt.Println("----------------------------")
+		fmt.Printf("SubdnodeID: %d\n", subnodeID)
+		if subnodeID != 0 {
+			totalmass += updateTotalMassNode(subnodeID)
+		} else {
+			// get the starID for getting the star mass
+			starID := getStarID(nodeID)
+			fmt.Printf("StarID: %d\n", starID)
+			if starID != 0 {
+				mass := getStarMass(starID)
+				log.Printf("starID=%d \t mass: %f", starID, mass)
+				totalmass += mass
+			}
+
+			// break, this stops a star from being counted multiple (4) times
+			break
+		}
+		fmt.Println("----------------------------")
+	}
+
+	query = fmt.Sprintf("UPDATE nodes SET total_mass=%f WHERE node_id=%d", totalmass, nodeID)
+	_, err = db.Query(query)
+	if err != nil {
+		log.Fatalf("[ E ] insert total_mass query: %v\n\t\t\t query: %s\n", err, query)
+	}
+
+	fmt.Printf("nodeID: %d \t totalMass: %f\n", nodeID, totalmass)
+
+	return totalmass
 }
