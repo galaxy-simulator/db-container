@@ -68,7 +68,8 @@ func newTree(width float64) {
 	query = fmt.Sprintf("INSERT INTO nodes (box_width, root_id, box_center, depth, isleaf) VALUES (%f, %d, '{0, 0}', 0, TRUE)", width, currentMaxRootID+1)
 
 	// execute the query
-	_, err = db.Query(query)
+	rows, err := db.Query(query)
+	defer rows.Close()
 	if err != nil {
 		log.Fatalf("[ E ] insert new node query: %v\n\t\t\t query: %s\n", err, query)
 	}
@@ -681,7 +682,8 @@ func updateTotalMassNode(nodeID int64) float64 {
 	}
 
 	query = fmt.Sprintf("UPDATE nodes SET total_mass=%f WHERE node_id=%d", totalmass, nodeID)
-	_, err = db.Query(query)
+	rows, err := db.Query(query)
+	defer rows.Close()
 	if err != nil {
 		log.Fatalf("[ E ] insert total_mass query: %v\n\t\t\t query: %s\n", err, query)
 	}
@@ -700,63 +702,73 @@ func updateCenterOfMass(index int64) {
 }
 
 // updateCenterOfMassNode updates the center of mass of the node with the given nodeID recursively
+// center of mass := ((x_1 * m) + (x_2 * m) + ... + (x_n * m)) / m
 func updateCenterOfMassNode(nodeID int64) structs.Vec2 {
-	var nominatorX float64
-	var deNominatorX float64
-	var nominatorY float64
-	var deNominatorY float64
+	fmt.Println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 
-	var centerOfMassX float64
-	var centerOfMassY float64
 	var centerOfMass structs.Vec2
 
 	// get the subnode ids
 	var subnode [4]int64
+	var starID int64
 
-	query := fmt.Sprintf("SELECT subnode[1], subnode[2], subnode[3], subnode[4] FROM nodes WHERE node_id=%d", nodeID)
-	err := db.QueryRow(query).Scan(&subnode[0], &subnode[1], &subnode[2], &subnode[3])
+	query := fmt.Sprintf("SELECT subnode[1], subnode[2], subnode[3], subnode[4], star_id FROM nodes WHERE node_id=%d", nodeID)
+	err := db.QueryRow(query).Scan(&subnode[0], &subnode[1], &subnode[2], &subnode[3], &starID)
 	if err != nil {
 		log.Fatalf("[ E ] updateCenterOfMassNode query: %v\n\t\t\t query: %s\n", err, query)
 	}
 
-	// iterate over all subnodes updating their total masses
-	for _, subnodeID := range subnode {
-		fmt.Println("----------------------------")
-		fmt.Printf("SubdnodeID: %d\n", subnodeID)
-		if subnodeID != 0 {
-			nominatorX += updateCenterOfMassNode(subnodeID).X * getNodeTotalMass(subnodeID)
-			deNominatorX += getNodeTotalMass(subnodeID)
-			nominatorY += updateCenterOfMassNode(subnodeID).Y * getNodeTotalMass(subnodeID)
-			deNominatorY += getNodeTotalMass(subnodeID)
+	// if the nodes does not contain a star but has children, update the center of mass
+	if starID == 0 && subnode != ([4]int64{0, 0, 0, 0}) {
+		log.Println("[   ] recursing deeper")
+
+		// define variables storing the values of the subnodes
+		var totalMass float64
+		var centerOfMassX float64
+		var centerOfMassY float64
+
+		// iterate over all the subnodes and calculate the center of mass of each node
+		for _, subnodeID := range subnode {
+			subnodeMass := getNodeTotalMass(subnodeID)
+			totalMass += subnodeMass
+
+			subnodeCenterOfMass := updateCenterOfMassNode(subnodeID)
+			centerOfMassX += subnodeCenterOfMass.X * subnodeMass
+			centerOfMassY += subnodeCenterOfMass.X * subnodeMass
+
+		}
+
+		// calculate the overall center of mass of the subtree
+		centerOfMass = structs.Vec2{centerOfMassX / totalMass, centerOfMassY / totalMass}
+
+		// else, use the star as the center of mass (this can be done, because of the rule defining that there
+		// can only be one star in a cell)
+	} else {
+		log.Println("[   ] using the star in the node as the center of mass")
+		log.Printf("[   ] NodeID: %v", nodeID)
+		starID := getStarID(nodeID)
+
+		if starID == 0 {
+			log.Println("[   ] StarID == 0...")
+			centerOfMass = structs.Vec2{0, 0}
 		} else {
-			log.Printf("Getting the starID using the nodeID %d", nodeID)
-			starID := getStarID(nodeID)
-			if starID != 0 {
-				// as the cell contains only a single star, the center of mass is the position of that single star
-				centerOfMass.X = getStar(starID).C.X
-				centerOfMass.Y = getStar(starID).C.Y
-				break
-			}
+			log.Printf("[   ] NodeID: %v", starID)
+			star := getStar(starID)
+			centerOfMassX := star.C.X * star.M
+			centerOfMassY := star.C.Y * star.M
+			centerOfMass = structs.Vec2{centerOfMassX / star.M, centerOfMassY / star.M}
 		}
-		fmt.Println("----------------------------")
 	}
 
-	// if the center of mass has not been set yet, set it
-	if centerOfMass == (structs.Vec2{0, 0}) {
-		if deNominatorX != 0 || deNominatorY != 0 {
-			centerOfMassX = nominatorX / deNominatorX
-			centerOfMassY = nominatorY / deNominatorY
-		}
-		centerOfMass = structs.Vec2{centerOfMassX, centerOfMassY}
-	}
+	// build the query
+	query = fmt.Sprintf("UPDATE nodes SET center_of_mass='{%f, %f}' WHERE node_id=%d", centerOfMass.X, centerOfMass.Y, nodeID)
 
-	query = fmt.Sprintf("UPDATE nodes SET center_of_mass='{%f, %f}' WHERE node_id=%d", centerOfMassX, centerOfMassY, nodeID)
-	_, err = db.Query(query)
+	// Execute the query
+	rows, err := db.Query(query)
+	defer rows.Close()
 	if err != nil {
-		log.Fatalf("[ E ] insert center_of_mass query: %v\n\t\t\t query: %s\n", err, query)
+		log.Fatalf("[ E ] update center of mass query: %v\n\t\t\t query: %s\n", err, query)
 	}
-
-	fmt.Printf("nodeID: %d \t totalMass: %v\n", nodeID, centerOfMass)
 
 	return centerOfMass
 }
@@ -785,12 +797,19 @@ func genForestTreeNode(nodeID int64) string {
 	// iterate over all subnodes updating their total masses
 	for _, subnodeID := range subnode {
 		if subnodeID != 0 {
+			centerOfMass := getCenterOfMass(nodeID)
+			mass := getNodeTotalMass(nodeID)
+			returnString += fmt.Sprintf("%.0f %.0f %.0f", centerOfMass.X, centerOfMass.Y, mass)
 			returnString += genForestTreeNode(subnodeID)
 		} else {
-
-			// get the starID for getting the star mass
-			starID := getStarID(nodeID)
-			returnString += fmt.Sprintf("[%d]", starID)
+			if getStarID(nodeID) != 0 {
+				coords := getStarCoordinates(nodeID)
+				starID := getStarID(nodeID)
+				mass := getStarMass(starID)
+				returnString += fmt.Sprintf("[%.0f %.0f %.0f]", coords.X, coords.Y, mass)
+			} else {
+				returnString += fmt.Sprintf("[0 0]")
+			}
 			// break, this stops a star from being counted multiple (4) times
 			break
 		}
@@ -799,4 +818,38 @@ func genForestTreeNode(nodeID int64) string {
 	returnString += "]"
 
 	return returnString
+}
+
+// getCenterOfMass returns the center of mass of the given nodeID
+func getCenterOfMass(nodeID int64) structs.Vec2 {
+
+	var CenterOfMass [2]float64
+
+	// get the star from the stars table
+	query := fmt.Sprintf("SELECT center_of_mass[1], center_of_mass[2] FROM nodes WHERE node_id=%d", nodeID)
+	err := db.QueryRow(query).Scan(&CenterOfMass[0], &CenterOfMass[1])
+	if err != nil {
+		log.Fatalf("[ E ] getCenterOfMass query: %v \n\t\t\tquery: %s\n", err, query)
+	}
+
+	return structs.Vec2{X: CenterOfMass[0], Y: CenterOfMass[1]}
+}
+
+// getStarCoordinates gets the star coordinates of a star using a given nodeID. It returns a vector describing the
+// coordinates
+func getStarCoordinates(nodeID int64) structs.Vec2 {
+	var Coordinates [2]float64
+
+	starID := getStarID(nodeID)
+
+	// get the star from the stars table
+	query := fmt.Sprintf("SELECT x, y FROM stars WHERE star_id=%d", starID)
+	err := db.QueryRow(query).Scan(&Coordinates[0], &Coordinates[1])
+	if err != nil {
+		log.Fatalf("[ E ] getStarCoordinates query: %v \n\t\t\tquery: %s\n", err, query)
+	}
+
+	fmt.Printf("%v\n", Coordinates)
+
+	return structs.Vec2{X: Coordinates[0], Y: Coordinates[1]}
 }
