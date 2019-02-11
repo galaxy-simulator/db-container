@@ -569,14 +569,14 @@ func getListOfStarsCsv() []string {
 	// iterate over the returned rows
 	for rows.Next() {
 
-		var star_id int64
+		var starID int64
 		var x, y, vx, vy, m float64
-		scanErr := rows.Scan(&star_id, &x, &y, &vx, &vy, &m)
+		scanErr := rows.Scan(&starID, &x, &y, &vx, &vy, &m)
 		if scanErr != nil {
 			log.Fatalf("[ E ] scan error: %v", scanErr)
 		}
 
-		row := fmt.Sprintf("%d, %f, %f, %f, %f, %f", star_id, x, y, vx, vy, m)
+		row := fmt.Sprintf("%d, %f, %f, %f, %f, %f", starID, x, y, vx, vy, m)
 		starList = append(starList, row)
 	}
 
@@ -719,7 +719,7 @@ func updateCenterOfMassNode(nodeID int64) structs.Vec2 {
 	}
 
 	// if the nodes does not contain a star but has children, update the center of mass
-	if starID == 0 && subnode != ([4]int64{0, 0, 0, 0}) {
+	if subnode != ([4]int64{0, 0, 0, 0}) {
 		log.Println("[   ] recursing deeper")
 
 		// define variables storing the values of the subnodes
@@ -729,17 +729,23 @@ func updateCenterOfMassNode(nodeID int64) structs.Vec2 {
 
 		// iterate over all the subnodes and calculate the center of mass of each node
 		for _, subnodeID := range subnode {
-			subnodeMass := getNodeTotalMass(subnodeID)
-			totalMass += subnodeMass
-
 			subnodeCenterOfMass := updateCenterOfMassNode(subnodeID)
-			centerOfMassX += subnodeCenterOfMass.X * subnodeMass
-			centerOfMassY += subnodeCenterOfMass.X * subnodeMass
 
+			if subnodeCenterOfMass.X != 0 && subnodeCenterOfMass.Y != 0 {
+				fmt.Printf("SubnodeCenterOfMass: (%f, %f)\n", subnodeCenterOfMass.X, subnodeCenterOfMass.Y)
+				subnodeMass := getNodeTotalMass(subnodeID)
+				totalMass += subnodeMass
+
+				centerOfMassX += subnodeCenterOfMass.X * subnodeMass
+				centerOfMassY += subnodeCenterOfMass.Y * subnodeMass
+			}
 		}
 
 		// calculate the overall center of mass of the subtree
-		centerOfMass = structs.Vec2{centerOfMassX / totalMass, centerOfMassY / totalMass}
+		centerOfMass = structs.Vec2{
+			X: centerOfMassX / totalMass,
+			Y: centerOfMassY / totalMass,
+		}
 
 		// else, use the star as the center of mass (this can be done, because of the rule defining that there
 		// can only be one star in a cell)
@@ -750,13 +756,25 @@ func updateCenterOfMassNode(nodeID int64) structs.Vec2 {
 
 		if starID == 0 {
 			log.Println("[   ] StarID == 0...")
-			centerOfMass = structs.Vec2{0, 0}
+			centerOfMass = structs.Vec2{
+				X: 0,
+				Y: 0,
+			}
 		} else {
 			log.Printf("[   ] NodeID: %v", starID)
 			star := getStar(starID)
-			centerOfMassX := star.C.X * star.M
-			centerOfMassY := star.C.Y * star.M
-			centerOfMass = structs.Vec2{centerOfMassX / star.M, centerOfMassY / star.M}
+			centerOfMassX := star.C.X
+			centerOfMassY := star.C.Y
+			centerOfMass = structs.Vec2{
+				X: centerOfMassX,
+				Y: centerOfMassY,
+			}
+			//centerOfMassX := star.C.X * star.M
+			//centerOfMassY := star.C.Y * star.M
+			//centerOfMass = structs.Vec2{
+			//	X: centerOfMassX / star.M,
+			//	Y: centerOfMassY / star.M,
+			//}
 		}
 	}
 
@@ -769,6 +787,8 @@ func updateCenterOfMassNode(nodeID int64) structs.Vec2 {
 	if err != nil {
 		log.Fatalf("[ E ] update center of mass query: %v\n\t\t\t query: %s\n", err, query)
 	}
+
+	fmt.Printf("[   ] CenterOfMass: (%f, %f)\n", centerOfMass.X, centerOfMass.Y)
 
 	return centerOfMass
 }
