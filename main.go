@@ -147,6 +147,34 @@ func updateTotalMassHandler(w http.ResponseWriter, r *http.Request) {
 	updateTotalMassEndpoint(index)
 }
 
+func updateCenterOfMassHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("[ ] The updateCenterOfMassHandler was accessed")
+
+	// get the star by parsing http-post parameters
+	errParseForm := r.ParseForm() // parse the POST form
+	if errParseForm != nil {      // handle errors
+		panic(errParseForm)
+	}
+
+	// get the tree into which the star should be inserted into
+	index, _ := strconv.ParseInt(r.Form.Get("index"), 10, 64)
+
+	updateCenterOfMassEndpoint(index)
+}
+
+func genForestTreeHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("[ ] The genForestTreeHandler was accessed")
+
+	vars := mux.Vars(r)
+	treeindex, parseIntErr := strconv.ParseInt(vars["treeindex"], 10, 64)
+	if parseIntErr != nil {
+		panic(parseIntErr)
+	}
+
+	tree := genForestTreeEndpoint(treeindex)
+	_, _ = fmt.Fprintf(w, "%s", tree)
+}
+
 func main() {
 	router := mux.NewRouter()
 
@@ -161,8 +189,10 @@ func main() {
 	router.HandleFunc("/insertList", insertListHandler).Methods("POST")
 
 	router.HandleFunc("/updatetotalmass", updateTotalMassHandler).Methods("POST")
+	router.HandleFunc("/updatecenterofmass", updateCenterOfMassHandler).Methods("POST")
 
-	//router.HandleFunc("/updatecenterofmass/{treeindex}", updateCenterOfMassHandler).Methods("GET")
+	router.HandleFunc("/genforesttree/{treeindex}", genForestTreeHandler).Methods("GET")
+
 	//router.HandleFunc("/metrics", metricHandler).Methods("GET")
 	//router.HandleFunc("/export/{treeindex}", exportHandler).Methods("POST")
 	//router.HandleFunc("/nrofgalaxies", nrofgalaxiesHandler).Methods("GET")
