@@ -85,3 +85,11 @@ func listOfStarsCsvEndpoint() []string {
 func updateTotalMassEndpoint(index int64) {
 	updateTotalMass(index)
 }
+
+func updateCenterOfMassEndpoint(index int64) {
+	updateCenterOfMass(index)
+}
+
+func genForestTreeEndpoint(index int64) string {
+	return genForestTree(index)
+}
