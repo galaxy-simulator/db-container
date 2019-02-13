@@ -19,7 +19,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"git.darknebu.la/GalaxySimulator/db-container/db_actions"
+	"git.darknebu.la/GalaxySimulator/db_actions"
 	"git.darknebu.la/GalaxySimulator/structs"
 	"log"
 	"net/http"
@@ -51,7 +51,7 @@ func newTreeHandler(w http.ResponseWriter, r *http.Request) {
 	width, _ := strconv.ParseFloat(r.Form.Get("w"), 64)
 
 	// create a new tree in the database width the given width
-	newTreeEndpoint(width)
+	newTreeEndpoint(db, width)
 
 	_, _ = fmt.Fprintf(w, "OK\n")
 }
@@ -88,7 +88,7 @@ func insertStarHandler(w http.ResponseWriter, r *http.Request) {
 		M: m,
 	}
 
-	insertStarEndpoint(star, index)
+	insertStarEndpoint(db, star, index)
 }
 
 func insertListHandler(w http.ResponseWriter, r *http.Request) {
@@ -102,21 +102,21 @@ func insertListHandler(w http.ResponseWriter, r *http.Request) {
 
 	filename := r.Form.Get("filename")
 
-	insertListEndpoint(filename)
+	insertListEndpoint(db, filename)
 }
 
 func deleteStarsHandler(w http.ResponseWriter, r *http.Request) {
-	deleteStarsEndpoint()
+	deleteStarsEndpoint(db)
 }
 
 func deleteNodesHandler(w http.ResponseWriter, r *http.Request) {
-	deleteNodesEndpoint()
+	deleteNodesEndpoint(db)
 }
 
 func getListOfStarsGoHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("[ ] The getListOfStarsGoHandler was accessed")
 
-	listOfStars := listOfStarsGoEndpoint()
+	listOfStars := listOfStarsGoEndpoint(db)
 
 	for _, star := range listOfStars {
 		_, _ = fmt.Fprintf(w, "%v\n", star)
@@ -126,7 +126,7 @@ func getListOfStarsGoHandler(w http.ResponseWriter, r *http.Request) {
 func getListOfStarsCsvHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("[ ] The getListOfStarsCsvHandler was accessed")
 
-	listOfStars := listOfStarsCsvEndpoint()
+	listOfStars := listOfStarsCsvEndpoint(db)
 
 	for _, star := range listOfStars {
 		_, _ = fmt.Fprintf(w, "%v\n", star)
@@ -145,7 +145,7 @@ func updateTotalMassHandler(w http.ResponseWriter, r *http.Request) {
 	// get the tree into which the star should be inserted into
 	index, _ := strconv.ParseInt(r.Form.Get("index"), 10, 64)
 
-	updateTotalMassEndpoint(index)
+	updateTotalMassEndpoint(db, index)
 }
 
 func updateCenterOfMassHandler(w http.ResponseWriter, r *http.Request) {
@@ -160,7 +160,7 @@ func updateCenterOfMassHandler(w http.ResponseWriter, r *http.Request) {
 	// get the tree into which the star should be inserted into
 	index, _ := strconv.ParseInt(r.Form.Get("index"), 10, 64)
 
-	updateCenterOfMassEndpoint(index)
+	updateCenterOfMassEndpoint(db, index)
 }
 
 func genForestTreeHandler(w http.ResponseWriter, r *http.Request) {
@@ -172,8 +172,14 @@ func genForestTreeHandler(w http.ResponseWriter, r *http.Request) {
 		panic(parseIntErr)
 	}
 
-	tree := genForestTreeEndpoint(treeindex)
+	tree := genForestTreeEndpoint(db, treeindex)
 	_, _ = fmt.Fprintf(w, "%s", tree)
+}
+
+func testCalcHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("[ ] The testCalcHandler was accessed")
+
+	testCalcEndpoint(db)
 }
 
 func main() {
@@ -193,6 +199,8 @@ func main() {
 	router.HandleFunc("/updatecenterofmass", updateCenterOfMassHandler).Methods("POST")
 
 	router.HandleFunc("/genforesttree/{treeindex}", genForestTreeHandler).Methods("GET")
+
+	router.HandleFunc("/test", testCalcHandler).Methods("POST")
 
 	//router.HandleFunc("/metrics", metricHandler).Methods("GET")
 	//router.HandleFunc("/export/{treeindex}", exportHandler).Methods("POST")
