@@ -17,6 +17,8 @@
 package main
 
 import (
+	"database/sql"
+	"git.darknebu.la/GalaxySimulator/db-container/db_actions"
 	"git.darknebu.la/GalaxySimulator/structs"
 )
 
@@ -48,48 +50,48 @@ API:
 }
 
 // newTree creates a new tree
-func newTreeEndpoint(width float64) {
-	newTree(width)
+func newTreeEndpoint(db *sql.DB, width float64) {
+	db_actions.NewTree(db, width)
 }
 
 // insertStarEndpoint inserts the star into the tree with the given index
-func insertStarEndpoint(star structs.Star2D, index int64) {
-	insertStar(star, index)
+func insertStarEndpoint(db *sql.DB, star structs.Star2D, index int64) {
+	db_actions.InsertStar(db, star, index)
 }
 
 // insertListEndpoint inserts the star into the tree with the given index
-func insertListEndpoint(filename string) {
-	insertList(filename)
+func insertListEndpoint(db *sql.DB, filename string) {
+	db_actions.InsertList(db, filename)
 }
 
 // deleteStarsEndpoint deletes all the rows from the stars table
-func deleteStarsEndpoint() {
-	deleteAllStars()
+func deleteStarsEndpoint(db *sql.DB) {
+	db_actions.DeleteAllStars(db)
 }
 
 // deleteNodesEndpoint deletes all the rows from the nodes table
-func deleteNodesEndpoint() {
-	deleteAllNodes()
+func deleteNodesEndpoint(db *sql.DB) {
+	db_actions.DeleteAllNodes(db)
 }
 
-func listOfStarsGoEndpoint() []structs.Star2D {
-	listOfStars := getListOfStarsGo()
+func listOfStarsGoEndpoint(db *sql.DB) []structs.Star2D {
+	listOfStars := db_actions.GetListOfStarsGo(db)
 	return listOfStars
 }
 
-func listOfStarsCsvEndpoint() []string {
-	listOfStars := getListOfStarsCsv()
+func listOfStarsCsvEndpoint(db *sql.DB) []string {
+	listOfStars := db_actions.GetListOfStarsCsv(db)
 	return listOfStars
 }
 
-func updateTotalMassEndpoint(index int64) {
-	updateTotalMass(index)
+func updateTotalMassEndpoint(db *sql.DB, index int64) {
+	db_actions.UpdateTotalMass(db, index)
 }
 
-func updateCenterOfMassEndpoint(index int64) {
-	updateCenterOfMass(index)
+func updateCenterOfMassEndpoint(db *sql.DB, index int64) {
+	db_actions.UpdateCenterOfMass(db, index)
 }
 
-func genForestTreeEndpoint(index int64) string {
-	return genForestTree(index)
+func genForestTreeEndpoint(db *sql.DB, index int64) string {
+	return db_actions.GenForestTree(db, index)
 }

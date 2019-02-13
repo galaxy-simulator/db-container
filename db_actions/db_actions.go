@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package main
+package db_actions
 
 import (
 	"database/sql"
@@ -36,8 +36,12 @@ const (
 	DBSSLMODE = "disable"
 )
 
+var (
+	db *sql.DB
+)
+
 // connectToDB returns a pointer to an sql database writing to the database
-func connectToDB() *sql.DB {
+func ConnectToDB() *sql.DB {
 	connStr := fmt.Sprintf("user=%s dbname=%s sslmode=%s", DBUSER, DBNAME, DBSSLMODE)
 	db := dbConnect(connStr)
 	return db
@@ -55,7 +59,8 @@ func dbConnect(connStr string) *sql.DB {
 }
 
 // newTree creates a new tree with the given width
-func newTree(width float64) {
+func NewTree(database *sql.DB, width float64) {
+	db = database
 	// get the current max root id
 	query := fmt.Sprintf("SELECT COALESCE(max(root_id), 0) FROM nodes")
 	var currentMaxRootID int64
@@ -76,7 +81,8 @@ func newTree(width float64) {
 }
 
 // insertStar inserts the given star into the stars table and the nodes table tree
-func insertStar(star structs.Star2D, index int64) {
+func InsertStar(database *sql.DB, star structs.Star2D, index int64) {
+	db = database
 	start := time.Now()
 	// insert the star into the stars table
 	starID := insertIntoStars(star)
@@ -348,7 +354,8 @@ func getStarID(nodeID int64) int64 {
 }
 
 // deleteAll Stars deletes all the rows in the stars table
-func deleteAllStars() {
+func DeleteAllStars(database *sql.DB) {
+	db = database
 	// build the query creating a new node
 	query := "DELETE FROM stars WHERE TRUE"
 
@@ -361,7 +368,8 @@ func deleteAllStars() {
 }
 
 // deleteAll Stars deletes all the rows in the nodes table
-func deleteAllNodes() {
+func DeleteAllNodes(database *sql.DB) {
+	db = database
 	// build the query creating a new node
 	query := "DELETE FROM nodes WHERE TRUE"
 
@@ -511,7 +519,8 @@ func removeStarFromNode(nodeID int64) {
 }
 
 // getListOfStarsGo returns the list of stars in go struct format
-func getListOfStarsGo() []structs.Star2D {
+func GetListOfStarsGo(database *sql.DB) []structs.Star2D {
+	db = database
 	// build the query
 	query := fmt.Sprintf("SELECT * FROM stars")
 
@@ -527,9 +536,9 @@ func getListOfStarsGo() []structs.Star2D {
 	// iterate over the returned rows
 	for rows.Next() {
 
-		var star_id int64
+		var starID int64
 		var x, y, vx, vy, m float64
-		scanErr := rows.Scan(&star_id, &x, &y, &vx, &vy, &m)
+		scanErr := rows.Scan(&starID, &x, &y, &vx, &vy, &m)
 		if scanErr != nil {
 			log.Fatalf("[ E ] scan error: %v", scanErr)
 		}
@@ -553,7 +562,8 @@ func getListOfStarsGo() []structs.Star2D {
 }
 
 // getListOfStarsCsv returns an array of strings containing the coordinates of all the stars in the stars table
-func getListOfStarsCsv() []string {
+func GetListOfStarsCsv(database *sql.DB) []string {
+	db = database
 	// build the query
 	query := fmt.Sprintf("SELECT * FROM stars")
 
@@ -584,7 +594,8 @@ func getListOfStarsCsv() []string {
 }
 
 // insertList inserts all the stars in the given .csv into the stars and nodes table
-func insertList(filename string) {
+func InsertList(database *sql.DB, filename string) {
+	db = database
 	// open the file
 	content, readErr := ioutil.ReadFile(filename)
 	if readErr != nil {
@@ -622,7 +633,7 @@ func insertList(filename string) {
 		}
 
 		fmt.Printf("Inserting (%f, %f)\n", star.C.X, star.C.Y)
-		insertStar(star, 1)
+		InsertStar(db, star, 1)
 	}
 }
 
@@ -640,7 +651,8 @@ func getRootNodeID(index int64) int64 {
 }
 
 // updateTotalMass gets a tree index and returns the nodeID of the trees root node
-func updateTotalMass(index int64) {
+func UpdateTotalMass(database *sql.DB, index int64) {
+	db = database
 	rootNodeID := getRootNodeID(index)
 	log.Printf("RootID: %d", rootNodeID)
 	updateTotalMassNode(rootNodeID)
@@ -695,7 +707,8 @@ func updateTotalMassNode(nodeID int64) float64 {
 
 // updateCenterOfMass recursively updates the center of mass of all the nodes starting at the node with the given
 // root index
-func updateCenterOfMass(index int64) {
+func UpdateCenterOfMass(database *sql.DB, index int64) {
+	db = database
 	rootNodeID := getRootNodeID(index)
 	log.Printf("RootID: %d", rootNodeID)
 	updateCenterOfMassNode(rootNodeID)
@@ -769,12 +782,6 @@ func updateCenterOfMassNode(nodeID int64) structs.Vec2 {
 				X: centerOfMassX,
 				Y: centerOfMassY,
 			}
-			//centerOfMassX := star.C.X * star.M
-			//centerOfMassY := star.C.Y * star.M
-			//centerOfMass = structs.Vec2{
-			//	X: centerOfMassX / star.M,
-			//	Y: centerOfMassY / star.M,
-			//}
 		}
 	}
 
@@ -794,7 +801,8 @@ func updateCenterOfMassNode(nodeID int64) structs.Vec2 {
 }
 
 // genForestTree generates a forest representation of the tree with the given index
-func genForestTree(index int64) string {
+func GenForestTree(database *sql.DB, index int64) string {
+	db = database
 	rootNodeID := getRootNodeID(index)
 	return genForestTreeNode(rootNodeID)
 }

@@ -19,6 +19,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"git.darknebu.la/GalaxySimulator/db-container/db_actions"
 	"git.darknebu.la/GalaxySimulator/structs"
 	"log"
 	"net/http"
@@ -197,7 +198,7 @@ func main() {
 	//router.HandleFunc("/export/{treeindex}", exportHandler).Methods("POST")
 	//router.HandleFunc("/nrofgalaxies", nrofgalaxiesHandler).Methods("GET")
 
-	db = connectToDB()
+	db = db_actions.ConnectToDB()
 	db.SetMaxOpenConns(75)
 
 	fmt.Println("Database Container up on port 8081")
