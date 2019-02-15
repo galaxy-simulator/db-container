@@ -178,8 +178,6 @@ func genForestTreeHandler(w http.ResponseWriter, r *http.Request) {
 
 func testCalcHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("[ ] The testCalcHandler was accessed")
-
-	testCalcEndpoint(db)
 }
 
 func main() {

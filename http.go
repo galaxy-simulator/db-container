@@ -95,14 +95,3 @@ func updateCenterOfMassEndpoint(db *sql.DB, index int64) {
 func genForestTreeEndpoint(db *sql.DB, index int64) string {
 	return db_actions.GenForestTree(db, index)
 }
-
-func testCalcEndpoint(db *sql.DB) {
-
-	star := structs.Star2D{
-		structs.Vec2{110, 110},
-		structs.Vec2{0, 0},
-		1000,
-	}
-
-	db_actions.CalcAllForces(db, star, 0.1)
-}
