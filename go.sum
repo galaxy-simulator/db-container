@@ -1,7 +1,11 @@
-git.darknebu.la/GalaxySimulator/db_actions v0.0.0-20190213121420-b93f9305a104 h1:lnhAcsTuY5Cbj1yrlGhIjTY9mOUDoi1VzCf22gftxHU=
-git.darknebu.la/GalaxySimulator/db_actions v0.0.0-20190213121420-b93f9305a104/go.mod h1:xiYCANQjztJHGClnE+Akf8Lgvl80EZwDiActPzdIXaQ=
-git.darknebu.la/GalaxySimulator/db_actions v0.0.0-20190213154609-4b94165a34c3 h1:FB8RIROLM1v4iib8oBmzjHZGYIJnn3kHoorSRfEs+70=
-git.darknebu.la/GalaxySimulator/db_actions v0.0.0-20190213154609-4b94165a34c3/go.mod h1:om84PUzEtYCjSVefmas+eFFadDz6xn+AKzr0alFZ7Ec=
+git.darknebu.la/GalaxySimulator/db-actions v0.0.0-20190306151439-70a98048d920 h1:qJMQ7p8AQuR25g4sL7ZcQ6aff5mPStgUpz9A8zqIyME=
+git.darknebu.la/GalaxySimulator/db-actions v0.0.0-20190306151439-70a98048d920/go.mod h1:D5fanr1NuL8GqX+Eslmpf0+l9dMNZVabmEoysbDlKW0=
+git.darknebu.la/GalaxySimulator/db-actions v0.0.0-20190306185518-ac0afbf77f17 h1:Q98dq1E4BOMM5cUoH9T3XaV8/C0ubVqkr8I/+x5IlUY=
+git.darknebu.la/GalaxySimulator/db-actions v0.0.0-20190306185518-ac0afbf77f17/go.mod h1:D5fanr1NuL8GqX+Eslmpf0+l9dMNZVabmEoysbDlKW0=
+git.darknebu.la/GalaxySimulator/db-actions v0.0.0-20190306190851-4e0e07d64e28 h1:RiLkL6TmWU1qTOfcfxwkZmtHESyW7L25NoJX8aiJShw=
+git.darknebu.la/GalaxySimulator/db-actions v0.0.0-20190306190851-4e0e07d64e28/go.mod h1:D5fanr1NuL8GqX+Eslmpf0+l9dMNZVabmEoysbDlKW0=
+git.darknebu.la/GalaxySimulator/db-actions v0.0.0-20190306191056-33c5bb6c383a h1:2BKSQG2WwI5su6Nu73eW1z0j1Jp1vr79FtC1+yAGmxQ=
+git.darknebu.la/GalaxySimulator/db-actions v0.0.0-20190306191056-33c5bb6c383a/go.mod h1:D5fanr1NuL8GqX+Eslmpf0+l9dMNZVabmEoysbDlKW0=
 git.darknebu.la/GalaxySimulator/structs v0.0.0-20190205205735-9dd56b9448e5 h1:aEQHEERwdLfRJrXb867wZzRMs1ym+j0zDys3opLWPew=
 git.darknebu.la/GalaxySimulator/structs v0.0.0-20190205205735-9dd56b9448e5/go.mod h1:LSDIBBC7IcWERm4wlDAroMpsUP7zJ1yDZFlQnP/UIsQ=
 github.com/gorilla/mux v1.7.0 h1:tOSd0UKHQd6urX6ApfOn4XdBMY6Sh1MfxV3kmaazO+U=

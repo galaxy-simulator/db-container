@@ -18,32 +18,99 @@ package main
 
 import (
 	"database/sql"
-	"git.darknebu.la/GalaxySimulator/db_actions"
+	"git.darknebu.la/GalaxySimulator/db-actions"
 	"git.darknebu.la/GalaxySimulator/structs"
 )
 
 // IndexEndpoint gives a basic overview over the api
 func indexEndpoint() string {
-	indexString := `Galaxy Simulator Database
+	indexString := `<html><body><h1>Galaxy Simulator Database</h1>
 
 API:
-	- / ("GET")
-	- /new ("POST")
-	- /printall ("GET")
-	- /insert/{treeindex} ("POST")
-	- /starlist/{treeindex} ("GET")
-	- /dumptree/{treeindex} ("GET")
+<h3> / (GET) </h3>
 
-	- /updatetotalmass/{treeindex} ("GET")
-	- /updatecenterofmass/{treeindex} ("GET")
+<h3> /new (POST) </h3>
+	Create a new Tree 
+	<br>
+	Parameters:
+	<ul>
+	<li>
+		w float64: width of the tree
+	</li>
+	</ul>
 
-	- /metrics ("GET")
-	- /export/{treeindex} ("POST")
+<h3> /deleteStars (POST) </h3>
+	Delete all stars from the stars Table
+	<br>
+	Parameters:
+	<ul>
+	<li>
+		none
+	</li>
+	</ul>
 
-	- /fastinsertjson/{filename} ("GET")
-	- /fastinsertlist/{filename} ("GET")
+<h3> /deleteNodes (POST) </h3>
+	Delete all nodes from the nodes Table
+	<br>
+	Parameters:
+	<ul>
+	<li>
+		none
+	</li>
+	</ul>
 
-	- /readdir ("GET")
+<h3> /starslist/go (GET) </h3>
+	List all stars using go-array format
+	<br>
+	Parameters:
+	<ul>
+	<li>
+		none
+	</li>
+	</ul>
+
+<h3> /starslist/csv (GET) </h3>
+	List all stars as a csv
+	<br>
+	Parameters:
+	<ul>
+	<li>
+		none
+	</li>
+	</ul>
+
+<h3> /updatetotalmass (POST) </h3>
+	Update the total mass of all the nodes in the tree with the given index
+	<br>
+	Parameters:
+	<ul>
+	<li>
+		index int: index of the tree	
+	</li>
+	</ul>
+
+<h3> /updatecenterofmass (POST) </h3>
+	Update the center of mass of all the nodes in the tree with the given index
+	<br>
+	Parameters:
+	<ul>
+	<li>
+		index int: index of the tree	
+	</li>
+	</ul>
+
+<h3> /genforesttree (GET) </h3>
+	Generate the forest representation of the tree with the given index 	
+	<br>
+	Parameters:
+	<ul>
+	<li>
+		index int: index of the tree	
+	</li>
+	</ul>
+
+</body>
+</html>	
 `
 
 	return indexString
@@ -94,4 +161,12 @@ func updateCenterOfMassEndpoint(db *sql.DB, index int64) {
 
 func genForestTreeEndpoint(db *sql.DB, index int64) string {
 	return db_actions.GenForestTree(db, index)
+}
+
+func initStarsTableEndpoint(db *sql.DB) {
+	db_actions.InitStarsTable(db)
+}
+
+func initNodesTableEndpoint(db *sql.DB) {
+	db_actions.InitNodesTable(db)
 }

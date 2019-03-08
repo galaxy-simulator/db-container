@@ -18,15 +18,14 @@ package main
 
 import (
 	"database/sql"
+	"flag"
 	"fmt"
-	"git.darknebu.la/GalaxySimulator/db_actions"
 	"git.darknebu.la/GalaxySimulator/structs"
 	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/mux"
-	//"git.darknebu.la/GalaxySimulator/structs"
 )
 
 var (
@@ -166,27 +165,35 @@ func updateCenterOfMassHandler(w http.ResponseWriter, r *http.Request) {
 func genForestTreeHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("[ ] The genForestTreeHandler was accessed")
 
-	vars := mux.Vars(r)
-	treeindex, parseIntErr := strconv.ParseInt(vars["treeindex"], 10, 64)
-	if parseIntErr != nil {
-		panic(parseIntErr)
-	}
+	index, _ := strconv.ParseInt(r.Form.Get("index"), 10, 64)
 
-	tree := genForestTreeEndpoint(db, treeindex)
+	tree := genForestTreeEndpoint(db, index)
 	_, _ = fmt.Fprintf(w, "%s", tree)
 }
 
-func testCalcHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("[ ] The testCalcHandler was accessed")
+func initStarsTableHandler(w http.ResponseWriter, r *http.Request) {
+	initStarsTableEndpoint(db)
+}
+
+func initNodesTableHandler(w http.ResponseWriter, r *http.Request) {
+	initNodesTableEndpoint(db)
 }
 
 func main() {
+	var port string
+	flag.StringVar(&port, "port", "8080", "port used to host the service")
+	var dbURL string
+	flag.StringVar(&dbURL, "DBURL", "postgres", "url of the database used")
+	flag.Parse()
+
 	router := mux.NewRouter()
 
 	router.HandleFunc("/", indexHandler).Methods("GET")
 	router.HandleFunc("/new", newTreeHandler).Methods("POST")
+
 	router.HandleFunc("/deleteStars", deleteStarsHandler).Methods("POST")
 	router.HandleFunc("/deleteNodes", deleteNodesHandler).Methods("POST")
+
 	router.HandleFunc("/starlist/go", getListOfStarsGoHandler).Methods("GET")
 	router.HandleFunc("/starlist/csv", getListOfStarsCsvHandler).Methods("GET")
 
@@ -196,17 +203,15 @@ func main() {
 	router.HandleFunc("/updatetotalmass", updateTotalMassHandler).Methods("POST")
 	router.HandleFunc("/updatecenterofmass", updateCenterOfMassHandler).Methods("POST")
 
-	router.HandleFunc("/genforesttree/{treeindex}", genForestTreeHandler).Methods("GET")
+	router.HandleFunc("/genforesttree", genForestTreeHandler).Methods("GET")
 
-	router.HandleFunc("/test", testCalcHandler).Methods("POST")
+	router.HandleFunc("/initStarsTable", initStarsTableHandler).Methods("POST")
+	router.HandleFunc("/initNodesTable", initNodesTableHandler).Methods("POST")
 
-	//router.HandleFunc("/metrics", metricHandler).Methods("GET")
-	//router.HandleFunc("/export/{treeindex}", exportHandler).Methods("POST")
-	//router.HandleFunc("/nrofgalaxies", nrofgalaxiesHandler).Methods("GET")
-
-	db = db_actions.ConnectToDB()
+	connStr := fmt.Sprintf("postgres://postgres:postgres@%s/postgres?sslmode=none", dbURL)
+	db, _ := sql.Open("postgres", connStr)
 	db.SetMaxOpenConns(75)
 
-	fmt.Println("Database Container up on port 8081")
-	log.Fatal(http.ListenAndServe(":8081", router))
+	fmt.Printf("Database Container up on localhost:%s\n", port)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), router))
 }
