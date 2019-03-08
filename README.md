@@ -1,3 +1,4 @@
+[![Go Report Card](https://goreportcard.com/badge/git.darknebu.la/GalaxySimulator/db-container)](https://goreportcard.com/report/git.darknebu.la/GalaxySimulator/db-container)
 # db-container
 
 This Repo contains the main "database" running an http-api exposing the quadtree.
